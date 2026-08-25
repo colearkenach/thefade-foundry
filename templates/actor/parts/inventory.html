@@ -13,6 +13,14 @@
         </div>
     </div>
 
+    <div class="sheet-filter-bar inventory-filter-bar" role="search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="search" class="inventory-filter" placeholder="Find gear in any category..." aria-label="Filter inventory" autocomplete="off" />
+        <span class="sheet-filter-count" aria-live="polite"></span>
+        <button type="button" class="sheet-filter-clear" title="Clear inventory filter" aria-label="Clear inventory filter"><i class="fas fa-times"></i></button>
+    </div>
+    <p class="sheet-filter-empty inventory-filter-empty" hidden>No inventory items match this search.</p>
+
     <!-- Inventory Subtabs Navigation -->
     <div class="inventory-tabs">
         <div class="tab-nav">
@@ -813,13 +821,64 @@
 
                 <!-- Consumables Subtabs -->
                 <div class="subtab-nav">
-                    <button type="button" class="subtab-button active" data-subtab="potions">Potions</button>
+                    <button type="button" class="subtab-button active" data-subtab="alchemy">Alchemy</button>
+                    <button type="button" class="subtab-button" data-subtab="potions">Potions</button>
                     <button type="button" class="subtab-button" data-subtab="drugs">Drugs</button>
                     <button type="button" class="subtab-button" data-subtab="poisons">Poisons</button>
                 </div>
 
+                <!-- Alchemy Subtab -->
+                <div class="subtab-content active" id="alchemy-subtab">
+                    <div class="alchemical-items inv-subblock">
+                        <h3 class="inv-subheading">
+                            <i class="fas fa-mortar-pestle"></i>
+                            <span class="inv-title">Alchemy &amp; Blightcraft</span>
+                            <span class="inv-count">{{actor.alchemical.length}}</span>
+                            <span class="inv-actions">
+                                <a class="item-create" title="Add Alchemical Item" data-type="alchemical"><i class="fas fa-plus"></i></a>
+                                <a class="alchemical-browse" title="Browse Alchemical Items"><i class="fas fa-search"></i></a>
+                            </span>
+                        </h3>
+                        <header class="gear-header flexrow alchemical-row">
+                            <div class="alchemical-name">Name</div>
+                            <div class="alchemical-discipline">Discipline</div>
+                            <div class="alchemical-skill">Skill</div>
+                            <div class="alchemical-dt">DT</div>
+                            <div class="alchemical-quantity">Qty.</div>
+                            <div class="alchemical-cost">Base / Craft</div>
+                            <div class="alchemical-controls"></div>
+                        </header>
+
+                        <ol class="items-list">
+                            {{#each actor.alchemical as |alchemical id|}}
+                            <li class="item flexrow alchemical-row {{#if alchemical.system.darkMagic}}is-blightcraft{{/if}}" data-item-id="{{alchemical._id}}">
+                                <div class="alchemical-name">
+                                    <img src="{{alchemical.img}}" class="item-icon" alt="{{alchemical.name}}"/>
+                                    <span>{{alchemical.name}}</span>
+                                </div>
+                                <div class="alchemical-discipline">
+                                    <span>{{alchemical.alchemicalDiscipline}}</span>
+                                    {{#if alchemical.system.darkMagic}}<small class="dark-magic-list-label">Dark Magic</small>{{/if}}
+                                </div>
+                                <div class="alchemical-skill">{{alchemical.system.skill}}</div>
+                                <div class="alchemical-dt">{{alchemical.system.dt}}</div>
+                                <div class="alchemical-quantity">
+                                    <input type="number" data-item-path="system.quantity" value="{{alchemical.system.quantity}}" data-dtype="Number" min="0" class="small-input"/>
+                                </div>
+                                <div class="alchemical-cost">{{alchemical.system.price}} / {{alchemical.alchemicalCraftCost}} sp.</div>
+                                <div class="alchemical-controls">
+                                    <a class="alchemy-craft" title="Craft one ({{alchemical.system.skill}}, DT {{alchemical.system.dt}})"><i class="fas fa-flask-vial"></i></a>
+                                    <a class="item-edit" title="Edit Alchemical Item"><i class="fas fa-edit"></i></a>
+                                    <a class="item-delete" title="Delete Alchemical Item"><i class="fas fa-trash"></i></a>
+                                </div>
+                            </li>
+                            {{/each}}
+                        </ol>
+                    </div>
+                </div>
+
                 <!-- Potions Subtab -->
-                <div class="subtab-content active" id="potions-subtab">
+                <div class="subtab-content" id="potions-subtab">
                     <div class="potions inv-subblock">
                         <h3 class="inv-subheading">
                             <i class="fas fa-prescription-bottle"></i>

@@ -1,85 +1,274 @@
-<form class="{{cssClass}}" autocomplete="off">
-    <header class="sheet-header">
-      <img class="profile-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
-      <div class="header-fields">
-        <h1 class="charname"><input name="name" type="text" value="{{item.name}}" placeholder="Name"/></h1>
+<form class="{{cssClass}} item-sheet-shell spell-sheet" autocomplete="off">
+  <header class="sheet-header spell-sheet-header">
+    <img class="profile-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name-dynamic"><input name="name" type="text" value="{{item.name}}" placeholder="Spell name"/></h1>
+      <div class="item-type-badge spell">{{system.school}} Spell{{#if (eq system.school "Malevolent")}} · Dark Magic{{else}}{{#if system.isDarkMagic}} · Dark Magic{{/if}}{{/if}}</div>
+    </div>
+    <a class="item-action-btn spell-cast-header cast-spell" title="Post spell details to chat">
+      <i class="fas fa-magic"></i> Cast
+    </a>
+  </header>
+
+  <nav class="sheet-tabs tabs spell-sheet-tabs" data-group="primary">
+    <a class="item" data-tab="description"><i class="fas fa-book-open"></i> Overview</a>
+    <a class="item" data-tab="casting"><i class="fas fa-wand-magic-sparkles"></i> Casting</a>
+    <a class="item" data-tab="effects"><i class="fas fa-burst"></i> Damage &amp; Effects</a>
+  </nav>
+
+  <section class="sheet-body spell-sheet-body">
+    <div class="tab spell-overview-tab" data-group="primary" data-tab="description">
+      <div class="spell-overview-summary">
+        <div class="spell-summary-stat">
+          <span>School</span>
+          <strong>{{system.school}}</strong>
+        </div>
+        <div class="spell-summary-stat">
+          <span>Health Damage</span>
+          <strong title="{{spellDamageDisplay}}">{{spellDamageDisplay}}</strong>
+        </div>
+        {{#if spellSanityDamage}}
+        <div class="spell-summary-stat spell-summary-sanity">
+          <span>Sanity Damage</span>
+          <strong>{{spellSanityDamage}}</strong>
+        </div>
+        {{/if}}
+        <div class="spell-summary-stat">
+          <span>Range</span>
+          <strong>{{#if system.range}}{{system.range}}{{else}}—{{/if}}</strong>
+        </div>
+        <div class="spell-summary-stat">
+          <span>Time / Duration</span>
+          <strong>{{#if system.time}}{{system.time}}{{else}}—{{/if}}</strong>
+        </div>
+        {{#if (eq system.school "Martial")}}
+        <div class="spell-summary-stat">
+          <span>Weapons</span>
+          <strong title="{{system.weapons}}">{{#if system.weapons}}{{system.weapons}}{{else}}—{{/if}}</strong>
+        </div>
+        {{/if}}
+        {{#if (eq system.school "Rituals")}}
+        <div class="spell-summary-stat">
+          <span>Recipe Cost</span>
+          <strong title="{{system.recipeCost}}">{{#if system.recipeCost}}{{system.recipeCost}}{{else}}—{{/if}}</strong>
+        </div>
+        {{/if}}
       </div>
-    </header>
-  
-    {{!-- Sheet Tab Navigation --}}
-    <nav class="sheet-tabs tabs" data-group="primary">
-      <a class="item" data-tab="description">Description</a>
-      <a class="item" data-tab="attributes">Attributes</a>
-    </nav>
-  
-    {{!-- Sheet Body --}}
-    <section class="sheet-body">
-      {{!-- Description Tab --}}
-      <div class="tab" data-group="primary" data-tab="description">
-        <textarea name="system.description">{{system.description}}</textarea>
-        <a class="item-action-btn cast-spell"><i class="fas fa-magic"></i> Cast Spell</a>
+
+      <div class="spell-panel spell-description-panel">
+        <div class="spell-panel-heading"><i class="fas fa-align-left"></i> Description</div>
+        <textarea name="system.description" rows="7" placeholder="Describe what the spell does...">{{system.description}}</textarea>
       </div>
-  
-      {{!-- Attributes Tab --}}
-      <div class="tab" data-group="primary" data-tab="attributes">
-        <div class="form-group">
-          <label>School</label>
-          <select name="system.school">
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="casting">
+      <div class="spell-panel">
+        <div class="spell-panel-heading"><i class="fas fa-wand-magic-sparkles"></i> Casting Profile</div>
+        <div class="item-attr-grid spell-casting-grid">
+          <div class="form-group">
+            <label>School</label>
+            <select name="system.school">
               {{selectOptions spellSchoolOptions selected=system.school}}
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label>Is Dark Magic?</label>
-          <input type="checkbox" name="system.isDarkMagic" {{#if (eq system.school "Malevolent")}}checked disabled{{else}}{{checked system.isDarkMagic}}{{/if}}/>
-          {{#if (eq system.school "Malevolent")}}<p class="hint">Malevolent spells are always Dark Magic.</p>{{/if}}
-        </div>
-        
-        <div class="form-group">
-          <label>Damage</label>
-          <input type="text" name="system.damage" value="{{system.damage}}"/>
-        </div>
-        
-        <div class="form-group">
-          <label>Damage Type</label>
-          <select name="system.damageType">
-              {{selectOptions spellDamageTypeOptions selected=system.damageType}}
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label>Time/Duration</label>
-          <input type="text" name="system.time" value="{{system.time}}"/>
-        </div>
-        
-        <div class="form-group">
-          <label>Successes Required</label>
-          <input type="text" name="system.successes" value="{{system.successes}}" data-dtype="Number"/>
-        </div>
-        
-        <div class="form-group">
-          <label>Attack</label>
-          <select name="system.attack">
-              {{selectOptions spellAttackOptions selected=system.attack}}
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label>Range</label>
-          <input type="text" name="system.range" value="{{system.range}}"/>
-        </div>
-        
-        <div class="form-group">
-          <label>Bonus Effect</label>
-          <textarea name="system.bonusEffect">{{system.bonusEffect}}</textarea>
-        </div>
-        
-        <div class="form-group">
-          <label>Mishap Modifier</label>
-          <select name="system.mishapModifier">
-              {{selectOptions mishapModifierOptions selected=system.mishapModifier}}
-          </select>
+            </select>
+          </div>
+
+          <div class="form-group spell-dark-magic-field">
+            <label>Magic Type</label>
+            <label class="form-field spell-checkbox-field">
+              <input type="checkbox" name="system.isDarkMagic" {{#if (eq system.school "Malevolent")}}checked disabled{{else}}{{checked system.isDarkMagic}}{{/if}}/>
+              <span>Dark Magic</span>
+            </label>
+            {{#if (eq system.school "Malevolent")}}<p class="hint">Malevolent spells are always Dark Magic.</p>{{/if}}
+          </div>
+
+          {{#if (eq system.school "Martial")}}
+          <div class="form-group full-width spell-weapons-field">
+            <label>Compatible Weapons</label>
+            <input type="text" name="system.weapons" value="{{system.weapons}}" placeholder="Sword and Axe"/>
+          </div>
+          {{/if}}
+
+          {{#if (eq system.school "Runes")}}
+          <div class="form-group full-width spell-rune-note">
+            <i class="fas fa-pen-ruler"></i>
+            Rune spells require both checks: Symbology draws the rune, then Spellcasting activates it.
+          </div>
+          <div class="form-group">
+            <label>Symbology Successes</label>
+            <input type="number" name="system.symbologySuccesses" value="{{system.symbologySuccesses}}" min="1" step="1" data-dtype="Number"/>
+          </div>
+          <div class="form-group">
+            <label>Spellcasting Successes</label>
+            <input type="number" name="system.spellcastingSuccesses" value="{{system.spellcastingSuccesses}}" min="1" step="1" data-dtype="Number"/>
+          </div>
+          {{/if}}
+
+          {{#if (eq system.school "Rituals")}}
+          <div class="form-group full-width spell-recipe-cost-field">
+            <label>Recipe Cost</label>
+            <input type="text" name="system.recipeCost" value="{{system.recipeCost}}" placeholder="e.g., 250 sp. and rare incense"/>
+          </div>
+          {{/if}}
+
+          {{#unless (eq system.school "Runes")}}
+          <div class="form-group">
+            <label>Successes Required</label>
+            <input type="number" name="system.successes" value="{{system.successes}}" min="1" step="1" data-dtype="Number"/>
+          </div>
+          {{/unless}}
+
+          <div class="form-group">
+            <label>Attack</label>
+            <select name="system.attack">
+              {{selectOptions spellAttackOptions selected=spellAttackSelection}}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Range</label>
+            <input type="text" name="system.range" value="{{system.range}}" placeholder="Self, touch, 6 hex..."/>
+          </div>
+
+          <div class="form-group">
+            <label>Time / Duration</label>
+            <input type="text" name="system.time" value="{{system.time}}" placeholder="Instantaneous, 1 round..."/>
+          </div>
+
+          {{#if spellAttacksAvoid}}
+          <div class="form-group full-width spell-defense-effect">
+            <label>Avoid — Effect on Hit</label>
+            <textarea name="system.attackEffects.Avoid" rows="2" placeholder="Optional effect tied to the Avoid attack...">{{system.attackEffects.Avoid}}</textarea>
+          </div>
+          {{/if}}
+          {{#if spellAttacksResilience}}
+          <div class="form-group full-width spell-defense-effect">
+            <label>Resilience — Effect on Hit</label>
+            <textarea name="system.attackEffects.Resilience" rows="2" placeholder="Optional effect tied to the Resilience attack...">{{system.attackEffects.Resilience}}</textarea>
+          </div>
+          {{/if}}
+          {{#if spellAttacksGrit}}
+          <div class="form-group full-width spell-defense-effect">
+            <label>Grit — Effect on Hit</label>
+            <textarea name="system.attackEffects.Grit" rows="2" placeholder="Optional effect tied to the Grit attack...">{{system.attackEffects.Grit}}</textarea>
+          </div>
+          {{/if}}
         </div>
       </div>
-    </section>
-  </form>
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="effects">
+      <div class="spell-damage-tracks-grid">
+        <div class="spell-panel spell-damage-panel">
+          <div class="dmg-comp-header">
+            <span><i class="fas fa-heart-crack"></i> Health Damage</span>
+            <button type="button" class="dmg-comp-add"><i class="fas fa-plus"></i> Add Type</button>
+          </div>
+          <p class="hint spell-damage-hint">Typed damage dealt to HP. Add one row for each damage type.</p>
+          {{#if spellDamageComponents.length}}
+            {{#each spellDamageComponents}}
+            <div class="dmg-comp-row" data-dmg-id="{{this.id}}">
+              <input type="number" class="dmg-comp-amount" value="{{this.amount}}" min="0" step="1" aria-label="Health damage amount"/>
+              <select class="dmg-comp-type" aria-label="Health damage type">
+                {{selectOptions ../spellDamageComponentTypeOptions selected=this.type}}
+              </select>
+              <button type="button" class="dmg-comp-delete" data-dmg-id="{{this.id}}" title="Remove damage type" aria-label="Remove damage type"><i class="fas fa-times"></i></button>
+            </div>
+            {{/each}}
+            <div class="spell-damage-total">
+              <span>HP Total</span>
+              <strong>{{spellDamageTotal}}</strong>
+              <span class="spell-damage-breakdown">{{spellDamageDisplay}}</span>
+            </div>
+          {{else}}
+            <div class="dmg-comp-empty">This spell deals no HP damage.</div>
+          {{/if}}
+        </div>
+
+        <div class="spell-panel spell-sanity-damage-panel">
+          <div class="spell-panel-heading"><i class="fas fa-brain"></i> Sanity Damage</div>
+          <label class="spell-sanity-damage-field">
+            <span>Amount / Roll</span>
+            <input type="text" name="system.sanityDamage" value="{{system.sanityDamage}}" placeholder="e.g., 4 or 2d12"/>
+          </label>
+          <p class="hint">This is applied to Sanity, not HP, and is never included in the typed Health Damage total.</p>
+          {{#if spellSanityDamage}}
+          <div class="spell-sanity-preview"><strong>{{spellSanityDamage}}</strong><span>Sanity damage</span></div>
+          {{/if}}
+        </div>
+      </div>
+
+      <div class="spell-panel spell-status-panel">
+        <div class="spell-effect-list-header">
+          <span><i class="fas fa-face-dizzy"></i> Inflicted Status Effects</span>
+          <button type="button" class="spell-status-add"><i class="fas fa-plus"></i> Add Status</button>
+        </div>
+        <p class="hint">Record every condition inflicted by the spell. Binary statuses do not use an intensity.</p>
+        {{#if spellStatusEffects.length}}
+        <div class="spell-status-row spell-effect-row-header" aria-hidden="true">
+          <span>Status</span><span>Intensity</span><span>Duration</span><span>Notes</span><span></span>
+        </div>
+        {{#each spellStatusEffects as |effect|}}
+        <div class="spell-status-row" data-effect-id="{{effect.id}}">
+          <select class="spell-status-type" aria-label="Status effect">
+            {{selectOptions ../spellStatusOptions selected=effect.status}}
+          </select>
+          {{#if effect.tiered}}
+          <select class="spell-status-intensity" aria-label="Status intensity">
+            {{selectOptions ../spellStatusIntensityOptions selected=effect.intensity}}
+          </select>
+          {{else}}
+          <span class="spell-effect-not-applicable">No intensity</span>
+          {{/if}}
+          <input type="text" class="spell-status-duration" value="{{effect.duration}}" placeholder="e.g., 3 rounds" aria-label="Status duration"/>
+          <input type="text" class="spell-status-notes" value="{{effect.notes}}" placeholder="Trigger or special rule" aria-label="Status notes"/>
+          <button type="button" class="spell-status-delete" data-effect-id="{{effect.id}}" title="Remove status" aria-label="Remove status"><i class="fas fa-times"></i></button>
+        </div>
+        {{/each}}
+        {{else}}
+        <div class="spell-effect-empty">This spell does not inflict a status effect.</div>
+        {{/if}}
+      </div>
+
+      <div class="spell-panel spell-buff-panel">
+        <div class="spell-effect-list-header">
+          <span><i class="fas fa-shield-heart"></i> Granted Buffs</span>
+          <button type="button" class="spell-buff-add"><i class="fas fa-plus"></i> Add Buff</button>
+        </div>
+        <p class="hint">Describe beneficial effects granted by the spell and who receives them.</p>
+        {{#if spellBuffEffects.length}}
+        <div class="spell-buff-row spell-effect-row-header" aria-hidden="true">
+          <span>Name</span><span>Target</span><span>Duration</span><span>Effect</span><span></span>
+        </div>
+        {{#each spellBuffEffects as |buff|}}
+        <div class="spell-buff-row" data-buff-id="{{buff.id}}">
+          <input type="text" class="spell-buff-name" value="{{buff.name}}" placeholder="Buff name" aria-label="Buff name"/>
+          <input type="text" class="spell-buff-target" value="{{buff.target}}" placeholder="Self, ally..." aria-label="Buff target"/>
+          <input type="text" class="spell-buff-duration" value="{{buff.duration}}" placeholder="e.g., 2d12 rounds" aria-label="Buff duration"/>
+          <input type="text" class="spell-buff-description" value="{{buff.description}}" placeholder="Bonus or benefit granted" aria-label="Buff effect"/>
+          <button type="button" class="spell-buff-delete" data-buff-id="{{buff.id}}" title="Remove buff" aria-label="Remove buff"><i class="fas fa-times"></i></button>
+        </div>
+        {{/each}}
+        {{else}}
+        <div class="spell-effect-empty">This spell does not grant a buff.</div>
+        {{/if}}
+      </div>
+
+      <div class="spell-effects-grid">
+        <div class="spell-panel">
+          <div class="spell-panel-heading"><i class="fas fa-sparkles"></i> Bonus Success Effect</div>
+          <textarea name="system.bonusEffect" rows="2" placeholder="Optional effect purchased with bonus successes...">{{system.bonusEffect}}</textarea>
+        </div>
+
+        <div class="spell-panel">
+          <div class="spell-panel-heading"><i class="fas fa-triangle-exclamation"></i> Mishap</div>
+          <div class="form-group">
+            <label>Mishap Modifier</label>
+            <select name="system.mishapModifier">
+              {{selectOptions mishapModifierOptions selected=system.mishapModifier}}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</form>

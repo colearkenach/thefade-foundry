@@ -2,8 +2,10 @@
 //
 // Casting a dark spell pushes current Sin up by the spell's required
 // successes (its "DT"). If that pushes current Sin above the actor's
-// Sin Threshold (Soul - dark spells learned + bonus), they roll Grit
-// vs the excess; failure advances the addiction stage by one step.
+// Sin Threshold (Soul - dark spells learned + bonus), Dark Magic makes
+// an attack against the caster's Grit. Its pool is the casting DT plus
+// 2D per existing Addiction stage. A hit deals 1d6 Sanity damage and
+// advances Addiction by one stage.
 //
 // Addiction stages carry passive penalties applied during actor data
 // prep: Early = -1 Grit, Middle = -2 Grit, Late = -1 Grit and reduced
@@ -16,6 +18,7 @@
 // Addiction progression); AUDIT.md P0 #3.
 
 import { getDarkMagicItemCorruptionValue, isDarkMagicItem } from "./item-power-rules.js";
+import { getSpellSuccessRequirements } from "./spell-rules.js";
 
 function escapeHTML(value) {
     return String(value ?? "")
@@ -30,6 +33,67 @@ function escapeHTML(value) {
  * Ordered addiction stage progression.
  */
 export const ADDICTION_STAGES = ["none", "early", "middle", "late", "terminal"];
+
+/**
+ * Build the Dark Magic attack pool: casting DT + 2D per Addiction stage.
+ */
+export function getAddictionAttackDice(castingDT, stage = "none") {
+    const numericDT = Number(castingDT);
+    const baseDice = Number.isFinite(numericDT) ? Math.max(1, Math.trunc(numericDT)) : 1;
+    const stageCount = Math.max(0, ADDICTION_STAGES.indexOf(stage));
+    return baseDice + (stageCount * 2);
+}
+
+function countD12Successes(roll) {
+    return (roll?.terms?.[0]?.results || []).reduce((total, die) =>
+        total + (die.result >= 12 ? 2 : die.result >= 8 ? 1 : 0), 0);
+}
+
+/**
+ * Roll Dark Magic's attack against an actor's Grit and apply the effects
+ * of a hit. Optional updates let callers commit Sin and hit effects in one
+ * actor update.
+ */
+export async function performAddictionAttack(actor, castingDT, updates = {}) {
+    const numericDT = Number(castingDT);
+    const baseDice = Number.isFinite(numericDT) ? Math.max(1, Math.trunc(numericDT)) : 1;
+    const priorStage = actor.system.darkMagic?.addictionLevel || "none";
+    const stageCount = Math.max(0, ADDICTION_STAGES.indexOf(priorStage));
+    const addictionBonus = stageCount * 2;
+    const dicePool = getAddictionAttackDice(baseDice, priorStage);
+    const rawGrit = Number(actor.system.totalGrit ?? actor.system.defenses?.grit ?? 1);
+    const gritTarget = Number.isFinite(rawGrit) ? Math.max(0, rawGrit) : 1;
+
+    const attackRoll = await new Roll(`${dicePool}d12`).evaluate({ async: true });
+    const attackSuccesses = countD12Successes(attackRoll);
+    const attackHits = attackSuccesses >= gritTarget;
+    let sanityRoll = null;
+    let sanityDamage = 0;
+    let sanityBefore = null;
+    let sanityAfter = null;
+    let stageAdvanced = null;
+
+    if (attackHits) {
+        sanityRoll = await new Roll("1d6").evaluate({ async: true });
+        sanityDamage = Number(sanityRoll.total || 0);
+        sanityBefore = Number(actor.system.sanity?.value ?? 0);
+        sanityAfter = sanityBefore - sanityDamage;
+        updates["system.sanity.value"] = sanityAfter;
+
+        if (stageCount < ADDICTION_STAGES.length - 1) {
+            stageAdvanced = ADDICTION_STAGES[stageCount + 1];
+            updates["system.darkMagic.addictionLevel"] = stageAdvanced;
+        }
+    }
+
+    if (Object.keys(updates).length) await actor.update(updates);
+
+    return {
+        castingDT: baseDice, priorStage, stageCount, addictionBonus,
+        dicePool, gritTarget, attackRoll, attackSuccesses, attackHits,
+        sanityRoll, sanityDamage, sanityBefore, sanityAfter, stageAdvanced
+    };
+}
 
 /** Dark-school titles shown on the character sheet. */
 export const DARK_SCHOOL_NAMES = Object.freeze({
@@ -96,7 +160,7 @@ export function applyAddictionPenalties(data) {
         const soul = data.attributes?.soul?.value || 1;
         const spells = Number(data.darkMagic.spellsLearnedCount) || 0;
         const bonus = Number(data.darkMagic.sinThresholdBonus) || 0;
-        data.darkMagic.sinThreshold = Math.max(0,
+        data.darkMagic.sinThreshold = Math.max(1,
             Math.floor(soul / effects.soulDivisor) - spells + bonus);
     }
 
@@ -141,66 +205,49 @@ export async function resetDailySin(actor) {
 
 /**
  * Handle a dark-spell cast. Increments Sin by the spell DT; if the new
- * total is over threshold, rolls a Grit test with dice equal to the
- * excess. Failure advances the addiction stage. Posts a summary card.
+ * total is over threshold, Dark Magic attacks the caster's Grit with the
+ * spell DT + 2D per Addiction stage. A hit deals 1d6 Sanity damage and
+ * advances Addiction. Posts a summary card.
  *
  * @param {Actor} actor - the caster
  * @param {Item} spell - the spell item
- * @returns {Promise<{sinBefore, sinAfter, threshold, overflow,
- *                    resistSuccesses?, gritTarget?, resisted?, stageAdvanced?}>}
+ * @returns {Promise<Object>}
  */
 export async function handleDarkCast(actor, spell) {
     if (!isDarkMagicSpell(spell)) return null;
 
-    const dt = Math.max(1, parseInt(spell.system.successes) || 1);
+    // Rune spells have two thresholds; Sin follows the Spellcasting
+    // activation requirement rather than the separate drawing requirement.
+    const dt = getSpellSuccessRequirements(spell.system).spellcasting;
     const sinBefore = Number(actor.system.darkMagic?.currentSin || 0);
     const threshold = Number(actor.system.darkMagic?.sinThreshold || 0);
     const sinAfter = sinBefore + dt;
 
     const updates = { "system.darkMagic.currentSin": sinAfter };
     let overflow = sinAfter - threshold;
-    let resistSuccesses = null;
-    let gritTarget = null;
-    let resisted = null;
-    let stageAdvanced = null;
+    let attack = null;
 
     if (overflow > 0) {
-        // Grit test: dice = overflow, target = totalGrit.
-        gritTarget = Number(actor.system.totalGrit || actor.system.defenses?.grit || 1);
-        const pool = Math.max(1, overflow);
-        const roll = await new Roll(`${pool}d12`).evaluate({ async: true });
-        resistSuccesses = 0;
-        roll.terms[0].results.forEach(die => {
-            if (die.result >= 12) resistSuccesses += 2;
-            else if (die.result >= 8) resistSuccesses += 1;
-        });
-        resisted = resistSuccesses >= gritTarget;
-        if (!resisted) {
-            const prior = actor.system.darkMagic?.addictionLevel || "none";
-            const idx = ADDICTION_STAGES.indexOf(prior);
-            if (idx >= 0 && idx < ADDICTION_STAGES.length - 1) {
-                updates["system.darkMagic.addictionLevel"] = ADDICTION_STAGES[idx + 1];
-                stageAdvanced = ADDICTION_STAGES[idx + 1];
-            }
-        }
+        attack = await performAddictionAttack(actor, dt, updates);
+    } else {
+        await actor.update(updates);
     }
-
-    await actor.update(updates);
 
     const summary = buildSummary({
         actor: actor.name,
         spell: spell.name,
-        dt, sinBefore, sinAfter, threshold, overflow,
-        resistSuccesses, gritTarget, resisted, stageAdvanced
+        dt, sinBefore, sinAfter, threshold, overflow, attack
     });
 
-    await ChatMessage.create({
+    const messageData = {
         speaker: ChatMessage.getSpeaker({ actor }),
+        flavor: attack ? "Dark Magic Addiction Attack" : "Dark Magic Sin",
         content: summary
-    });
+    };
+    if (attack) await attack.attackRoll.toMessage(messageData);
+    else await ChatMessage.create(messageData);
 
-    return { sinBefore, sinAfter, threshold, overflow,
-             resistSuccesses, gritTarget, resisted, stageAdvanced };
+    return { sinBefore, sinAfter, threshold, overflow, ...attack };
 }
 
 /**
@@ -218,57 +265,53 @@ export async function applyDarkItemCorruption(actor, item, { period = "dawn" } =
     const threshold = Number(actor.system.darkMagic?.sinThreshold || 0);
     const overflow = sinAfter - threshold;
     const updates = { "system.darkMagic.currentSin": sinAfter };
-    let dicePool = null;
-    let successes = null;
-    let grit = null;
-    let addictionAdvanced = null;
+    let attack = null;
 
     if (overflow > 0) {
-        const stage = actor.system.darkMagic?.addictionLevel || "none";
-        const addictionDice = { none: 0, early: 2, middle: 4, late: 6, terminal: 0 }[stage] || 0;
-        dicePool = Math.max(1, corruptionValue + addictionDice);
-        grit = Number(actor.system.totalGrit || actor.system.defenses?.grit || 3);
-        const roll = await new Roll(`${dicePool}d12`).evaluate({ async: true });
-        successes = roll.terms[0].results.reduce((total, die) =>
-            total + (die.result >= 12 ? 2 : die.result >= 8 ? 1 : 0), 0);
-
-        if (successes >= grit) {
-            const index = ADDICTION_STAGES.indexOf(stage);
-            if (index >= 0 && index < ADDICTION_STAGES.length - 1) {
-                addictionAdvanced = ADDICTION_STAGES[index + 1];
-                updates["system.darkMagic.addictionLevel"] = addictionAdvanced;
-            }
-        }
+        attack = await performAddictionAttack(actor, corruptionValue, updates);
+    } else {
+        await actor.update(updates);
     }
-
-    await actor.update(updates);
     const cadence = period === "week" ? "weekly passive corruption" : "dawn attunement corruption";
     const check = overflow > 0
-        ? `<p>Addiction check: ${dicePool}D vs Grit ${grit} — <strong>${successes}</strong> successes.${successes >= grit ? ` Addiction advances${addictionAdvanced ? ` to <strong>${addictionAdvanced}</strong>` : " (already terminal)"}.` : " The pull is resisted."}</p>`
-        : `<p>Sin remains within the threshold; no addiction check is required.</p>`;
-    await ChatMessage.create({
+        ? buildAttackResult(attack)
+        : `<p>Sin remains within the threshold; no Dark Magic attack is made.</p>`;
+    const messageData = {
         speaker: ChatMessage.getSpeaker({ actor }),
+        flavor: attack ? "Dark Magic Addiction Attack" : "Dark Magic Item Corruption",
         content: `<div class="thefade-sin-summary"><h3>${escapeHTML(item.name)}</h3><p><strong>${escapeHTML(actor.name)}</strong> suffers ${cadence} (Corruption Value ${corruptionValue}).</p><p>Sin: ${sinBefore} → <strong>${sinAfter}</strong> (threshold ${threshold}).</p>${check}</div>`
-    });
+    };
+    if (attack) await attack.attackRoll.toMessage(messageData);
+    else await ChatMessage.create(messageData);
 
-    return { corruptionValue, sinGain, sinBefore, sinAfter, threshold, overflow, dicePool, successes, grit, addictionAdvanced };
+    return { corruptionValue, sinGain, sinBefore, sinAfter, threshold, overflow, ...attack };
+}
+
+function buildAttackResult(attack) {
+    const poolBreakdown = attack.addictionBonus
+        ? `${attack.castingDT}D base + ${attack.addictionBonus}D Addiction`
+        : `${attack.castingDT}D base`;
+    const result = [`<p>Dark Magic attack: ${attack.dicePool}D (${poolBreakdown}) against Grit ${attack.gritTarget} — <strong>${attack.attackSuccesses}</strong> successes: <strong>${attack.attackHits ? "HIT" : "MISS"}</strong>.</p>`];
+    if (attack.attackHits) {
+        result.push(`<p>The hit deals <strong>${attack.sanityDamage} Sanity damage</strong> (1d6): ${attack.sanityBefore} → ${attack.sanityAfter}. `);
+        result.push(attack.stageAdvanced
+            ? `Addiction advances to <strong>${attack.stageAdvanced}</strong>.</p>`
+            : `Addiction is already at the terminal stage.</p>`);
+    } else {
+        result.push(`<p class="success">The pull is resisted.</p>`);
+    }
+    return result.join("");
 }
 
 function buildSummary(o) {
     const parts = [];
-    parts.push(`<p><strong>${o.actor}</strong> casts <em>${o.spell}</em> (Dark Magic, DT ${o.dt}).</p>`);
+    parts.push(`<p><strong>${escapeHTML(o.actor)}</strong> casts <em>${escapeHTML(o.spell)}</em> (Dark Magic, DT ${o.dt}).</p>`);
     parts.push(`<p>Sin: ${o.sinBefore} → <strong>${o.sinAfter}</strong> (threshold ${o.threshold}).</p>`);
     if (o.overflow > 0) {
-        parts.push(`<p>Sin exceeds threshold by ${o.overflow}. Grit test (${o.overflow}d12 vs ${o.gritTarget}): <strong>${o.resistSuccesses}</strong> successes.</p>`);
-        if (o.resisted) {
-            parts.push(`<p class="success">The pull is resisted.</p>`);
-        } else if (o.stageAdvanced) {
-            parts.push(`<p class="failure">The dark takes hold — addiction advances to <strong>${o.stageAdvanced}</strong>.</p>`);
-        } else {
-            parts.push(`<p class="failure">The dark takes hold — already at terminal stage.</p>`);
-        }
+        parts.push(`<p>Sin exceeds its threshold.</p>`);
+        parts.push(buildAttackResult(o.attack));
     } else {
-        parts.push(`<p>Within threshold — no resistance roll required.</p>`);
+        parts.push(`<p>Within threshold — no Dark Magic attack is made.</p>`);
     }
     return `<div class="thefade-sin-summary">${parts.join("")}</div>`;
 }

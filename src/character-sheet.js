@@ -16,10 +16,25 @@ import {
     calculateSkillDice, deleteCustomSkill, slugifySkill
 } from './skills.js';
 import { renderModifierHtml } from './conditions.js';
-import { applyDarkItemCorruption, handleDarkCast, isDarkMagicSpell, spellSchoolDisplay } from './dark-magic.js';
+import { applyDarkItemCorruption, handleDarkCast, isDarkMagicSpell, performAddictionAttack, spellSchoolDisplay } from './dark-magic.js';
 import { damageTypeFlags } from './damage.js';
+import {
+    buildSpellDamageProfile,
+    buildSpellEffectsProfile,
+    formatSpellAttackTargets,
+    formatSpellDamageTracks,
+    formatSpellSuccessRequirements,
+    getSpellAttackTargets,
+    getSpellSuccessRequirements
+} from './spell-rules.js';
+import {
+    craftAlchemicalItem,
+    getAlchemicalCraftCost,
+    getAlchemicalDiscipline
+} from './alchemy-rules.js';
 import { openOpposedRollDialog, openAidAnotherDialog } from './opposed.js';
 import { rollHitLocation, locationLabel } from './hit-location.js';
+import { classifyTokenFacing } from './token-facing.js';
 import { armorProtectionPools, buildProtectionView } from './protection.js';
 import {
     startIgnition, endIgnition, getIgnitionState,
@@ -76,7 +91,7 @@ export class TheFadeCharacterSheet extends ActorSheet {
         return foundry.utils.mergeObject(super.defaultOptions, {
             classes: ["thefade", "sheet", "actor"],
             template: "systems/thefade/templates/actor/character-sheet.html",
-            width: 800,
+            width: 840,
             height: 950,
             tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "main" }],
             // Preserve scroll position across re-renders so editing a field
@@ -405,6 +420,7 @@ export class TheFadeCharacterSheet extends ActorSheet {
         data.actor.unequippedArmor = [];
         data.actor.armorTotals = {};
         data.actor.potions = [];
+        data.actor.alchemical = [];
         data.actor.drugs = [];
         data.actor.currentAttunements = 0;
         data.actor.maxAttunements = 0;
@@ -503,6 +519,7 @@ export class TheFadeCharacterSheet extends ActorSheet {
         const traits = [];
         const precepts = [];
         const itemsOfPower = [];
+        const alchemical = [];
         const potions = [];
         const drugs = [];
         const poisons = []; // Templates expect this
@@ -541,6 +558,11 @@ export class TheFadeCharacterSheet extends ActorSheet {
             try {
                 if (i.type === 'magicitem') {
                     itemsOfPower.push(i);
+                }
+                else if (i.type === 'alchemical') {
+                    i.alchemicalDiscipline = getAlchemicalDiscipline(i.system);
+                    i.alchemicalCraftCost = getAlchemicalCraftCost(i.system);
+                    alchemical.push(i);
                 }
                 else if (i.type === 'potion') {
                     potions.push(i);
@@ -605,6 +627,11 @@ export class TheFadeCharacterSheet extends ActorSheet {
                 else if (i.type === 'spell') {
                     i.displaySchool = spellSchoolDisplay(i);
                     i.isDarkSchool = isDarkMagicSpell(i);
+                    i.damageDisplay = formatSpellDamageTracks(i.system);
+                    i.effectsProfile = buildSpellEffectsProfile(i.system);
+                    i.attackDisplay = formatSpellAttackTargets(i.system);
+                    i.successesDisplay = formatSpellSuccessRequirements(i.system, { compact: true });
+                    i.successesTitle = formatSpellSuccessRequirements(i.system);
                     spells.push(i);
                 }
                 else if (i.type === 'skill') {
@@ -699,6 +726,7 @@ export class TheFadeCharacterSheet extends ActorSheet {
         actorData.equippedArmor = equippedArmor;
         actorData.unequippedArmor = unequippedArmor;
         actorData.armorTotals = armorTotals;
+        actorData.alchemical = alchemical;
         actorData.potion = potions;
         actorData.drugs = drugs;
         actorData.poisons = poisons;
@@ -2877,54 +2905,21 @@ export class TheFadeCharacterSheet extends ActorSheet {
         const spellDT = await this._getSpellDT();
         if (spellDT === null) return; // User cancelled
 
-        // Start with dice equal to spell DT
-        let dicePool = spellDT;
+        const attack = await performAddictionAttack(this.actor, spellDT);
+        const poolBreakdown = attack.addictionBonus > 0
+            ? `${spellDT}D from spell + ${attack.addictionBonus}D from ${attack.priorStage} Addiction`
+            : `${spellDT}D from spell`;
+        const hitEffect = attack.attackHits
+            ? `<p class="failure">The dark magic hits, dealing <strong>${attack.sanityDamage} Sanity damage</strong> (1d6): ${attack.sanityBefore} → ${attack.sanityAfter}. ${attack.stageAdvanced ? `Addiction advances to <strong>${attack.stageAdvanced}</strong>.` : "Addiction is already terminal."}</p>`
+            : `<p class="success">The Dark Magic attack misses; the pull is resisted.</p>`;
 
-        // Add addiction bonus dice
-        const addictionLevel = this.actor.system.darkMagic?.addictionLevel || "none";
-        const addictionBonuses = {
-            "none": 0,
-            "early": 2,
-            "middle": 4,
-            "late": 6,
-            "terminal": 0
-        };
-
-        const addictionBonus = addictionBonuses[addictionLevel];
-        dicePool += addictionBonus;
-
-        // Ensure minimum of 1 die
-        dicePool = Math.max(1, dicePool);
-
-        // Get target's Grit
-        const grit = this.actor.system.totalGrit || 3;
-
-        // Roll the dice
-        const roll = new Roll(`${dicePool}d12`);
-        await roll.evaluate();
-
-        // Count successes
-        let successes = 0;
-        roll.terms[0].results.forEach(die => {
-            if (die.result >= 8 && die.result <= 11) successes += 1;
-            else if (die.result >= 12) successes += 2;
-        });
-
-        // Check against Grit
-        const rollSucceeds = successes >= grit;
-
-        // Create message
-        let addictionMessage = addictionBonus > 0 ? ` (${spellDT}D from spell + ${addictionBonus}D from ${addictionLevel} addiction)` : ` (${spellDT}D from spell)`;
-
-        roll.toMessage({
+        await attack.attackRoll.toMessage({
             speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-            flavor: `Dark Magic Addiction Check${addictionMessage}`,
+            flavor: `Dark Magic Addiction Attack (${poolBreakdown})`,
             content: `
-            <p>${this.actor.name} rolled ${dicePool}d12 vs Grit (${grit}).</p>
-            <p>Successes: ${successes}</p>
-            <p class="${rollSucceeds ? 'success' : 'failure'}">
-                ${rollSucceeds ? 'The dark magic takes hold!' : 'Resisted the pull of dark magic.'}
-            </p>
+            <p>Dark Magic attacks ${this.actor.name}'s Grit ${attack.gritTarget} with ${attack.dicePool}D.</p>
+            <p>Successes: ${attack.attackSuccesses} — <strong>${attack.attackHits ? "HIT" : "MISS"}</strong></p>
+            ${hitEffect}
         `
         });
     }
@@ -3027,6 +3022,23 @@ export class TheFadeCharacterSheet extends ActorSheet {
         if (!spell) return;
 
         const spellData = spell.system;
+        const successRequirements = getSpellSuccessRequirements(spellData);
+        const activationRequiredSuccesses = successRequirements.spellcasting;
+        const summarizeD12Roll = rolled => {
+            let successes = 0;
+            const dieResultsDetails = (rolled?.terms?.[0]?.results || []).map(die => {
+                let resultClass = "failure";
+                if (die.result >= 12) {
+                    resultClass = "critical";
+                    successes += 2;
+                } else if (die.result >= 8) {
+                    resultClass = "success";
+                    successes += 1;
+                }
+                return { value: die.result, class: resultClass };
+            });
+            return { successes, dieResultsDetails };
+        };
 
         // Find the Spellcasting skill
         const spellcasting = getSkill(this.actor, "Spellcasting");
@@ -3095,45 +3107,79 @@ export class TheFadeCharacterSheet extends ActorSheet {
         dicePool += condMods.bonusDice - condMods.penaltyDice;
         dicePool = Math.max(1, dicePool);
 
+        // Rune magic is a two-stage process with independent thresholds.
+        // Symbology draws the rune first; Spellcasting activates it. A failed
+        // drawing is not itself a magical mishap.
+        let runeDrawing = null;
+        let runeCondMods = null;
+        if (spellData.school === "Runes") {
+            const symbology = getSkill(this.actor, "Symbology");
+            if (!symbology) {
+                ui.notifications.warn("Character does not have the Symbology skill.");
+                return;
+            }
+
+            let runeDicePool = calculateSkillDice(this.actor, symbology);
+            runeCondMods = this.actor.getConditionRollModifiers({
+                kind: "skill",
+                skillName: "Symbology",
+                skillCategory: symbology.category,
+                attributeName: symbology.attribute
+            });
+            runeDicePool = Math.max(1, runeDicePool + runeCondMods.bonusDice - runeCondMods.penaltyDice);
+
+            if (runeCondMods.autoFail) {
+                runeDrawing = {
+                    dicePool: runeDicePool,
+                    dieResultsDetails: [],
+                    successes: 0,
+                    required: successRequirements.symbology,
+                    success: false,
+                    autoFail: true,
+                    roll: null
+                };
+            } else {
+                const runeRoll = await new Roll(`${runeDicePool}d12`).evaluate({ async: true });
+                const runeSummary = summarizeD12Roll(runeRoll);
+                runeDrawing = {
+                    dicePool: runeDicePool,
+                    dieResultsDetails: runeSummary.dieResultsDetails,
+                    successes: runeSummary.successes,
+                    required: successRequirements.symbology,
+                    success: runeSummary.successes >= successRequirements.symbology,
+                    autoFail: false,
+                    roll: runeRoll
+                };
+            }
+        }
+
         // Roll the dice for spell casting check
         const roll = new Roll(`${dicePool}d12`);
         await roll.evaluate();
 
-        // Create detailed die results with styling classes
-        const dieResultsDetails = roll.terms[0].results.map(die => {
-            let resultClass = "failure";
-            if (die.result >= 12) resultClass = "critical";
-            else if (die.result >= 8) resultClass = "success";
-
-            return {
-                value: die.result,
-                class: resultClass
-            };
-        });
-
-        // Count successes
-        let successes = 0;
-        roll.terms[0].results.forEach(die => {
-            if (die.result >= 8 && die.result <= 11) successes += 1;
-            else if (die.result >= 12) successes += 2;
-        });
+        const activationSummary = summarizeD12Roll(roll);
+        const dieResultsDetails = activationSummary.dieResultsDetails;
+        const successes = activationSummary.successes;
 
         // Check if spell succeeds
-        const requiredSuccesses = parseInt(spellData.successes) || 3;
-        const spellSucceeds = successes >= requiredSuccesses;
+        const activationSucceeds = successes >= activationRequiredSuccesses;
+        const spellSucceeds = activationSucceeds && (!runeDrawing || runeDrawing.success);
 
         // Calculate bonus successes
-        const bonusSuccesses = spellSucceeds ? successes - requiredSuccesses : 0;
+        const bonusSuccesses = spellSucceeds ? successes - activationRequiredSuccesses : 0;
+
+        const damageProfile = buildSpellDamageProfile(spellData);
+        const effectsProfile = buildSpellEffectsProfile(spellData);
 
         // Calculate half damage for damage-type effects
-        const halfDamage = spellData.damage ? Math.max(1, Math.floor(parseInt(spellData.damage) / 2)) : 1;
+        const halfDamage = damageProfile.total ? Math.max(1, Math.floor(damageProfile.total / 2)) : 1;
 
         // Determine if a mishap occurs on failure
         let mishapSeverity = null;
         let mishapMessage = "";
 
-        if (!spellSucceeds) {
-            const successesMissing = requiredSuccesses - successes;
+        if (!activationSucceeds) {
+            const successesMissing = activationRequiredSuccesses - successes;
 
             if (successesMissing === 1) {
                 mishapSeverity = "Minor";
@@ -3152,47 +3198,28 @@ export class TheFadeCharacterSheet extends ActorSheet {
             <p>Roll on the ${mishapSeverity} Mishap table!</p>`;
         }
 
-        // New: Prepare attack roll data if spell has an attack type
-        let attackRollData = null;
-        if (spellData.attack && spellData.attack !== "" && spellSucceeds) {
-            // For attack spells, we'll use the same dice pool as the casting roll
-            const attackRoll = new Roll(`${dicePool}d12`);
-            await attackRoll.evaluate();
-
-            // Calculate attack roll successes
-            let attackSuccesses = 0;
-            const attackResultsDetails = attackRoll.terms[0].results.map(die => {
-                let resultClass = "failure";
-                if (die.result >= 12) {
-                    resultClass = "critical";
-                    attackSuccesses += 2;
-                } else if (die.result >= 8) {
-                    resultClass = "success";
-                    attackSuccesses += 1;
-                }
-                return {
-                    value: die.result,
-                    class: resultClass
-                };
-            });
-
-            // Default DT for attack success is 3, but this could be made configurable
-            const attackDT = 3;
-            const attackHits = attackSuccesses >= attackDT;
-
-            // Calculate attack bonus successes
-            const attackBonusSuccesses = attackHits ? attackSuccesses - attackDT : 0;
-
-            attackRollData = {
-                dicePool: dicePool,
-                dieResultsDetails: attackResultsDetails,
-                successes: attackSuccesses,
-                dt: attackDT,
-                hits: attackHits,
-                bonusSuccesses: attackBonusSuccesses,
-                targetDefense: spellData.attack,
-                roll: attackRoll
-            };
+        // Each listed defense receives an independent attack roll. This lets a
+        // spell such as Gag of Hell resolve its Resilience and Grit effects
+        // separately instead of treating both defenses as a single target.
+        const attackRolls = [];
+        if (spellSucceeds) {
+            for (const targetDefense of getSpellAttackTargets(spellData)) {
+                const attackRoll = await new Roll(`${dicePool}d12`).evaluate({ async: true });
+                const attackSummary = summarizeD12Roll(attackRoll);
+                const attackDT = 3;
+                const attackHits = attackSummary.successes >= attackDT;
+                attackRolls.push({
+                    dicePool,
+                    dieResultsDetails: attackSummary.dieResultsDetails,
+                    successes: attackSummary.successes,
+                    dt: attackDT,
+                    hits: attackHits,
+                    bonusSuccesses: attackHits ? attackSummary.successes - attackDT : 0,
+                    targetDefense,
+                    effect: spellData.attackEffects?.[targetDefense] || "",
+                    roll: attackRoll
+                });
+            }
         }
 
         let isDurationLong = false;
@@ -3204,15 +3231,10 @@ export class TheFadeCharacterSheet extends ActorSheet {
             );
         }
 
-        // Add the damage cost based on damage type
-        const damageIncreaseCost = (spellData.damageType === "So" ||
-            spellData.damageType === "Ex" ||
-            spellData.damageType === "Psi") ? 2 : 1;
-
-        // Check if spell can crit based on damage type
-        const canCrit = !(spellData.damageType === "So" ||
-            spellData.damageType === "Ex" ||
-            spellData.damageType === "Psi");
+        const restrictedDamageTypes = new Set(["So", "Ex", "Psi"]);
+        const damageIncreaseCost = damageProfile.components.some(component => restrictedDamageTypes.has(component.type)) ? 2 : 1;
+        const canCrit = damageProfile.components.length > 0 &&
+            damageProfile.components.every(component => !restrictedDamageTypes.has(component.type));
 
         const templateData = {
             actor: this.actor.name,
@@ -3220,39 +3242,50 @@ export class TheFadeCharacterSheet extends ActorSheet {
             dicePool: dicePool,
             dieResultsDetails: dieResultsDetails,
             successes: successes,
-            required: requiredSuccesses,
+            required: activationRequiredSuccesses,
             success: spellSucceeds,
+            activationSuccess: activationSucceeds,
+            isRune: !!runeDrawing,
+            runeDrawing,
+            runeDrawingFailed: !!runeDrawing && !runeDrawing.success,
             bonusSuccesses: bonusSuccesses,
             bonusEffect: spellData.bonusEffect,
             durationIncreaseCost: isDurationLong ? 2 : 1,
             damageIncreaseCost: damageIncreaseCost,
-            canCrit: canCrit && spellData.damage,
-            mishap: !spellSucceeds,
+            canCrit,
+            mishap: !activationSucceeds,
             mishapSeverity: mishapSeverity,
             mishapMessage: mishapMessage.replace(/<\/?p[^>]*>/g, '').replace(/<\/?strong[^>]*>/g, ''),
-            damage: spellSucceeds && spellData.damage ? spellData.damage : null,
-            damageType: spellData.damageType,
+            damage: spellSucceeds && damageProfile.total ? damageProfile.total : null,
+            damageType: damageProfile.primaryType,
+            damageComponents: spellSucceeds ? damageProfile.components : [],
+            damageDisplay: spellSucceeds && damageProfile.total ? damageProfile.display : "",
+            sanityDamage: spellSucceeds ? effectsProfile.sanityDamage : "",
+            statusEffects: spellSucceeds ? effectsProfile.statusEffects : [],
+            buffEffects: spellSucceeds ? effectsProfile.buffEffects : [],
             halfDamage: halfDamage,
-            ...damageTypeFlags(spellData.damageType, spellData.damageComponents),
+            ...damageTypeFlags(damageProfile.primaryType, damageProfile.components),
             description: spellData.description,
-            hasAttack: !!attackRollData,
-            attackRoll: attackRollData,
+            weapons: spellData.weapons,
+            recipeCost: spellData.recipeCost,
+            hasAttack: attackRolls.length > 0,
+            attackRolls,
             range: spellData.range,
             time: spellData.time
         };
 
-        const content = renderModifierHtml(condMods) +
+        const content = (runeCondMods ? renderModifierHtml(runeCondMods) : "") + renderModifierHtml(condMods) +
             await renderTemplate("systems/thefade/templates/chat/spell-cast.html", templateData);
 
         // Send the spell casting result to chat
-        roll.toMessage({
+        await roll.toMessage({
             speaker: ChatMessage.getSpeaker({ actor: this.actor }),
             flavor: `Casting ${spell.name}`,
             content: content
         });
 
         // Dark Magic: every cast (success or not) accrues Sin and may
-        // trigger the addiction resistance roll.
+        // trigger Dark Magic's attack against the caster's Grit.
         if (isDarkMagicSpell(spell)) {
             try {
                 await handleDarkCast(this.actor, spell);
@@ -3449,7 +3482,8 @@ export class TheFadeCharacterSheet extends ActorSheet {
     }
 
     /**
-    * Calculate facing category based on attacker position and target token rotation.
+    * Calculate facing from the attacker's snapped hex direction relative to
+    * the target token's selected front hex.
     * @param {Token|null} attackerToken - Token performing the attack
     * @param {Token|null} targetToken - Target token receiving the attack
     * @returns {string} one of front|flank|backflank|back
@@ -3457,28 +3491,7 @@ export class TheFadeCharacterSheet extends ActorSheet {
     _calculateFacingFromTokens(attackerToken, targetToken) {
         if (!attackerToken || !targetToken) return "front";
 
-        const attackerCenter = attackerToken.center;
-        const targetCenter = targetToken.center;
-        if (!attackerCenter || !targetCenter) return "front";
-
-        const dx = attackerCenter.x - targetCenter.x;
-        const dy = attackerCenter.y - targetCenter.y;
-
-        // Facing is stored on the token as flags.thefade.facing (0 = north,
-        // clockwise), independent of document.rotation. atan2 returns 0 for
-        // east, so add 90° to put both values in the same "0 = north" frame.
-        const angleToAttacker = ((Math.atan2(dy, dx) * (180 / Math.PI)) + 90 + 360) % 360;
-        const stored = targetToken.document?.flags?.thefade?.facing;
-        const targetFacing = ((typeof stored === "number" ? stored : 0) + 360) % 360;
-
-        // Signed delta in range [-180, 180].
-        const delta = ((angleToAttacker - targetFacing + 540) % 360) - 180;
-        const absDelta = Math.abs(delta);
-
-        if (absDelta <= 45) return "front";
-        if (absDelta <= 135) return "flank";
-        if (absDelta <= 170) return "backflank";
-        return "back";
+        return classifyTokenFacing(attackerToken, targetToken, canvas?.grid);
     }
 
     /**
@@ -3939,6 +3952,7 @@ export class TheFadeCharacterSheet extends ActorSheet {
         });
 
         html.find('.sheet-state-section').on('toggle', ev => {
+            if (ev.currentTarget.dataset.filterForced === "true") return;
             const key = ev.currentTarget.dataset.sectionKey;
             if (!key) return;
             if (!this._sheetSectionOpenStates) this._sheetSectionOpenStates = new Map();
@@ -3948,6 +3962,8 @@ export class TheFadeCharacterSheet extends ActorSheet {
         html.find('.sheet-section-summary a, .sheet-section-summary button').on('click', ev => {
             ev.stopPropagation();
         });
+
+        this._activateSheetFilters(html);
 
         html.find('.roll-anatomy-location').on('click', async ev => {
             ev.preventDefault();
@@ -4561,6 +4577,18 @@ export class TheFadeCharacterSheet extends ActorSheet {
             openCompendiumBrowser("potion", this.actor);
         });
 
+        html.find('.alchemical-browse').click(ev => {
+            ev.preventDefault();
+            openCompendiumBrowser("alchemical", this.actor);
+        });
+
+        html.find('.alchemy-craft').click(async ev => {
+            ev.preventDefault();
+            const itemId = ev.currentTarget.closest('.item')?.dataset?.itemId;
+            const item = itemId ? this.actor.items.get(itemId) : null;
+            if (item) await craftAlchemicalItem(this.actor, item);
+        });
+
         html.find('.drug-browse').click(ev => {
             ev.preventDefault();
             openCompendiumBrowser("drug", this.actor);
@@ -4956,6 +4984,120 @@ export class TheFadeCharacterSheet extends ActorSheet {
         const isCollapsed = toolSection.attr('data-collapsed') === 'true';
         toolSection.attr('data-collapsed', !isCollapsed);
         $(event.currentTarget).attr('aria-expanded', String(isCollapsed));
+    }
+
+    /**
+     * Add client-side filters for the two densest character-sheet tabs.
+     * Filtering never updates actor data and remains useful on read-only sheets.
+     */
+    _activateSheetFilters(html) {
+        const normalize = value => String(value || "").trim().toLocaleLowerCase();
+
+        const skillsInput = html.find('.skills-filter');
+        const applySkillFilter = () => {
+            const query = normalize(skillsInput.val());
+            let matchCount = 0;
+
+            html.find('.skill-category').each((_, categoryElement) => {
+                const category = $(categoryElement);
+                let categoryMatches = 0;
+
+                category.find('.skill-entry').each((__, rowElement) => {
+                    const row = $(rowElement);
+                    const matches = !query || normalize(row.text()).includes(query);
+                    row.toggleClass('filter-match', matches).toggle(matches);
+                    if (matches) {
+                        categoryMatches += 1;
+                        matchCount += 1;
+                    }
+                });
+
+                category.toggle(!query || categoryMatches > 0);
+                category.find('.skills-column-header').each((__, headerElement) => {
+                    const header = $(headerElement);
+                    header.toggle(!query || header.next('.skills-list').find('.skill-entry.filter-match').length > 0);
+                });
+
+                category.find('details.untrained-skills').each((__, detailsElement) => {
+                    const details = $(detailsElement);
+                    if (query && details.find('.skill-entry.filter-match').length > 0) {
+                        detailsElement.dataset.filterForced = "true";
+                        details.prop('open', true);
+                    } else if (!query) {
+                        detailsElement.dataset.filterForced = "true";
+                        details.prop('open', this._getSheetSectionOpenState(detailsElement.dataset.sectionKey, false));
+                        setTimeout(() => delete detailsElement.dataset.filterForced, 0);
+                    }
+                });
+            });
+
+            html.find('.skills-filter-empty').prop('hidden', !query || matchCount > 0);
+            html.find('.skills-filter-bar .sheet-filter-count').text(query ? `${matchCount} found` : "");
+            html.find('.skills-filter-bar .sheet-filter-clear').toggleClass('is-visible', !!query);
+        };
+
+        skillsInput.on('input', applySkillFilter);
+        html.find('.skills-filter-bar .sheet-filter-clear').on('click', event => {
+            event.preventDefault();
+            skillsInput.val('').trigger('input').trigger('focus');
+        });
+
+        const inventoryInput = html.find('.inventory-filter');
+        const applyInventoryFilter = () => {
+            const query = normalize(inventoryInput.val());
+            let matchCount = 0;
+
+            html.find('.inventory-tabs .item[data-item-id]').each((_, rowElement) => {
+                const row = $(rowElement);
+                const matches = !query || normalize(row.text()).includes(query);
+                row.toggleClass('filter-match', matches).toggle(matches);
+                if (matches) matchCount += 1;
+            });
+
+            html.find('.inventory-tabs > .tab-content').each((_, panelElement) => {
+                const panel = $(panelElement);
+                const hasMatch = panel.find('.item[data-item-id].filter-match').length > 0;
+                const tabName = panelElement.id?.replace(/-tab$/, '');
+                html.find(`.inventory-tabs > .tab-nav .tab-button[data-tab="${tabName}"]`)
+                    .toggleClass('filter-no-match', !!query && !hasMatch);
+
+                panel.find('.subtab-content').each((__, subpanelElement) => {
+                    const subpanel = $(subpanelElement);
+                    const subHasMatch = subpanel.find('.item[data-item-id].filter-match').length > 0;
+                    const subtabName = subpanelElement.id?.replace(/-subtab$/, '');
+                    panel.find(`.subtab-button[data-subtab="${subtabName}"]`)
+                        .toggleClass('filter-no-match', !!query && !subHasMatch);
+                });
+            });
+
+            if (query && matchCount > 0) {
+                const activePanel = html.find('.inventory-tabs > .tab-content.active');
+                if (!activePanel.find('.item[data-item-id].filter-match').length) {
+                    html.find('.inventory-tabs > .tab-nav .tab-button').not('.filter-no-match').first().trigger('click');
+                }
+
+                const currentPanel = html.find('.inventory-tabs > .tab-content.active');
+                const currentSubpanel = currentPanel.find('.subtab-content.active');
+                if (currentSubpanel.length && !currentSubpanel.find('.item[data-item-id].filter-match').length) {
+                    currentPanel.find('.subtab-button').not('.filter-no-match').first().trigger('click');
+                }
+
+                const firstVisibleMatch = html
+                    .find('.inventory-tabs > .tab-content.active .item[data-item-id].filter-match')
+                    .first()[0];
+                firstVisibleMatch?.scrollIntoView({ block: "nearest" });
+            }
+
+            html.find('.inventory-filter-empty').prop('hidden', !query || matchCount > 0);
+            html.find('.inventory-filter-bar .sheet-filter-count').text(query ? `${matchCount} found` : "");
+            html.find('.inventory-filter-bar .sheet-filter-clear').toggleClass('is-visible', !!query);
+        };
+
+        inventoryInput.on('input', applyInventoryFilter);
+        html.find('.inventory-filter-bar .sheet-filter-clear').on('click', event => {
+            event.preventDefault();
+            inventoryInput.val('').trigger('input').trigger('focus');
+        });
     }
 
     /**

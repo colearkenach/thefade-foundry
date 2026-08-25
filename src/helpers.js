@@ -66,6 +66,7 @@ export function openCompendiumBrowser(itemType, actor, compendiumName = null) {
             case "armor": compendiumName = "armor"; break;
             case "magicitem": compendiumName = "magic-item"; break;
             case "potion": compendiumName = "magic-item"; break;
+            case "alchemical": compendiumName = "mundane-item"; break;
             case "medical": compendiumName = "mundane-item"; break;
             case "travel": compendiumName = "mundane-item"; break;
             case "biological": compendiumName = "mundane-item"; break;
@@ -156,6 +157,8 @@ export function openCompendiumBrowser(itemType, actor, compendiumName = null) {
             // Convert based on itemCategory first
             if (itemCategory === "magicitem") {
                 itemData.type = "magicitem";
+            } else if (itemCategory === "alchemical") {
+                itemData.type = "alchemical";
             } else if (itemCategory === "potion") {
                 itemData.type = "potion";
             } else if (itemCategory === "drug") {

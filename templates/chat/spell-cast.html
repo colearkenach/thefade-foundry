@@ -3,8 +3,28 @@
         <h3>Casting {{spellName}}</h3>
     </header>
     <div class="card-content">
+        {{#if runeDrawing}}
+        <div class="rune-drawing-section">
+            <h4>Rune Drawing — Symbology</h4>
+            <p>
+                {{actor}} rolled {{runeDrawing.dicePool}}d12:
+                {{#if runeDrawing.autoFail}}
+                <strong>Automatic failure</strong>
+                {{else}}
+                {{#each runeDrawing.dieResultsDetails}}
+                <span class="die-result {{this.class}}">{{this.value}}</span>{{#unless @last}}, {{/unless}}
+                {{/each}}
+                {{/if}}
+            </p>
+            <p>Successes: {{runeDrawing.successes}} ({{runeDrawing.required}} required)</p>
+            <p class="rune-result {{#if runeDrawing.success}}success{{else}}failure{{/if}}">
+                {{#if runeDrawing.success}}The rune is drawn successfully.{{else}}The rune is not drawn correctly and cannot be activated.{{/if}}
+            </p>
+        </div>
+        {{/if}}
+
         <div class="spell-casting-section">
-            <h4>Spell Manifestation</h4>
+            <h4>{{#if isRune}}Rune Activation{{else}}Spell Manifestation{{/if}} — Spellcasting</h4>
             <p>
                 {{actor}} rolled {{dicePool}}d12:
                 {{#each dieResultsDetails}}
@@ -13,8 +33,51 @@
             </p>
             <p>Successes: {{successes}} ({{required}} required)</p>
             <p class="casting-result {{#if success}}success{{else}}failure{{/if}}">
-                {{#if success}}The spell is successfully cast!{{else}}The spell fails to manifest...{{/if}}
+                {{#if success}}
+                {{#if isRune}}The rune is successfully activated!{{else}}The spell is successfully cast!{{/if}}
+                {{else}}
+                {{#if runeDrawingFailed}}Activation fails because the rune was not drawn successfully.{{else}}{{#if isRune}}The rune fails to activate.{{else}}The spell fails to manifest...{{/if}}{{/if}}
+                {{/if}}
             </p>
+
+            {{#if damage}}
+            <div class="spell-damage-summary">
+                <strong>HP Damage:</strong>
+                <div class="damage-component-list">
+                    {{#each damageComponents as |component|}}
+                    <span class="damage-component" data-damage-type="{{component.type}}">
+                        <strong class="damage-component-value">{{component.amount}}</strong> {{component.label}}
+                    </span>
+                    {{/each}}
+                </div>
+                <span class="spell-damage-total-label">Total: {{damage}}</span>
+            </div>
+            {{/if}}
+
+            {{#if sanityDamage}}
+            <div class="spell-sanity-summary">
+                <i class="fas fa-brain"></i>
+                <div><strong>Sanity Damage:</strong> {{sanityDamage}}<small>Applied to Sanity, not HP.</small></div>
+            </div>
+            {{/if}}
+
+            {{#if statusEffects.length}}
+            <div class="spell-outcome-summary spell-status-summary">
+                <strong><i class="fas fa-face-dizzy"></i> Inflicted Status Effects</strong>
+                <ul>
+                    {{#each statusEffects as |effect|}}<li>{{effect.display}}</li>{{/each}}
+                </ul>
+            </div>
+            {{/if}}
+
+            {{#if buffEffects.length}}
+            <div class="spell-outcome-summary spell-buff-summary">
+                <strong><i class="fas fa-shield-heart"></i> Granted Buffs</strong>
+                <ul>
+                    {{#each buffEffects as |buff|}}<li>{{buff.display}}</li>{{/each}}
+                </ul>
+            </div>
+            {{/if}}
 
             {{#if success}}
             {{#if bonusSuccesses}}
@@ -60,10 +123,11 @@
         </div>
 
         {{#if hasAttack}}
-    <div class="spell-attack-section">
+        {{#each attackRolls as |attackRoll|}}
+    <div class="spell-attack-section" data-target-defense="{{attackRoll.targetDefense}}">
         <h4>Spell Attack</h4>
         <p>
-            {{actor}} rolled {{attackRoll.dicePool}}d12 vs. {{attackRoll.targetDefense}}:
+            {{../actor}} rolled {{attackRoll.dicePool}}d12 vs. {{attackRoll.targetDefense}}:
             {{#each attackRoll.dieResultsDetails}}
             <span class="die-result {{this.class}}">{{this.value}}</span>{{#unless @last}}, {{/unless}}
             {{/each}}
@@ -74,59 +138,65 @@
         </p>
 
         {{#if attackRoll.hits}}
+        {{#if attackRoll.effect}}
+        <p class="spell-defense-effect-result"><strong>{{attackRoll.targetDefense}} effect:</strong> {{attackRoll.effect}}</p>
+        {{/if}}
+        {{/if}}
+
+        {{#if attackRoll.hits}}
         {{#if attackRoll.bonusSuccesses}}
         <p>Bonus Successes: <span class="attack-remaining-successes">{{attackRoll.bonusSuccesses}}</span></p>
 
         <div class="attack-bonus-options">
-            {{#if canCrit}}
-            <button class="bonus-option attack-bonus" data-option="critical" data-cost="4" data-damage="{{damage}}">
-                Critical Hit (4 successes): +{{damage}} damage
+            {{#if ../canCrit}}
+            <button class="bonus-option attack-bonus" data-option="critical" data-cost="4" data-damage="{{../damage}}">
+                Critical Hit (4 successes): +{{../damage}} damage
             </button>
             {{/if}}
             
-            {{#if isFire}}
+            {{#if ../isFire}}
             <button class="bonus-option attack-bonus" data-option="fire" data-cost="2">
                 Fire (2 successes): Target catches fire for 1d6 rounds
             </button>
             {{/if}}
 
-            {{#if isCold}}
+            {{#if ../isCold}}
             <button class="bonus-option attack-bonus" data-option="cold" data-cost="2">
                 Cold (2 successes): Fatigue (Low Intensity) for 1 round
             </button>
             {{/if}}
 
-            {{#if isAcid}}
+            {{#if ../isAcid}}
             <button class="bonus-option attack-bonus" data-option="acid" data-cost="2">
                 Acid (2 successes): Pain (Low Intensity) for 1 round
             </button>
             {{/if}}
 
-            {{#if isElectricity}}
+            {{#if ../isElectricity}}
             <button class="bonus-option attack-bonus" data-option="electricity" data-cost="3">
                 Electricity (3 successes): Chain to adjacent target
             </button>
             {{/if}}
 
-            {{#if isSonic}}
-            <button class="bonus-option attack-bonus" data-option="sonic" data-cost="3" data-damage="{{halfDamage}}">
-                Sonic (3 successes): Deafness for {{halfDamage}} rounds
+            {{#if ../isSonic}}
+            <button class="bonus-option attack-bonus" data-option="sonic" data-cost="3" data-damage="{{../halfDamage}}">
+                Sonic (3 successes): Deafness for {{../halfDamage}} rounds
             </button>
             {{/if}}
 
-            {{#if isSmiting}}
+            {{#if ../isSmiting}}
             <button class="bonus-option attack-bonus" data-option="smiting" data-cost="3">
                 Smiting (3 successes): Fear (Moderate) for 1d6 rounds
             </button>
             {{/if}}
 
-            {{#if isExpel}}
+            {{#if ../isExpel}}
             <button class="bonus-option attack-bonus" data-option="expel" data-cost="3">
                 Expel (3 successes): Stunned (Moderate) for 1d6 rounds
             </button>
             {{/if}}
 
-            {{#if isPsychokinetic}}
+            {{#if ../isPsychokinetic}}
             <button class="bonus-option attack-bonus" data-option="psychokinetic-damage" data-cost="2">
                 Psychokinetic (2 successes): Half damage to sanity
             </button>
@@ -135,7 +205,7 @@
             </button>
             {{/if}}
 
-            {{#if isCorruption}}
+            {{#if ../isCorruption}}
             <button class="bonus-option attack-bonus" data-option="corruption" data-cost="2">
                 Corruption (2 successes): Half damage unhealable for 24h
             </button>
@@ -146,9 +216,12 @@
         {{/if}}
         {{/if}}
     </div>
+        {{/each}}
         {{/if}}
 
         <div class="spell-description-section">
+            {{#if weapons}}<p><strong>Weapons:</strong> {{weapons}}</p>{{/if}}
+            {{#if recipeCost}}<p><strong>Recipe Cost:</strong> {{recipeCost}}</p>{{/if}}
             <p><strong>Description:</strong> {{description}}</p>
         </div>
     </div>

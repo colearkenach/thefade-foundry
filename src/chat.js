@@ -11,53 +11,61 @@ import { applyDamage } from './damage.js';
  * @param {string} config.remainingSelector - selector for remaining successes element
  * @param {string} config.appliedSelector - selector for applied effects container
  * @param {Object<string,Function>} config.handlers - mapping of option -> async handler
+ * @param {string} [config.scopeSelector] - independently tracks successes within each matching section
  */
-export function bindBonusHandlers(html, { buttonSelector, remainingSelector, appliedSelector, handlers }) {
-    const bonusOptions = html.find(buttonSelector);
-    if (!bonusOptions.length) return;
+export function bindBonusHandlers(html, { buttonSelector, remainingSelector, appliedSelector, handlers, scopeSelector }) {
+    const scopes = scopeSelector
+        ? html.filter(scopeSelector).add(html.find(scopeSelector)).toArray()
+        : [html];
 
-    const appliedEffects = html.find(appliedSelector);
-    let remaining = parseInt(html.find(remainingSelector).text());
-    const usedEffects = new Set();
-    const counters = {};
+    for (const scopeElement of scopes) {
+        const scope = scopeSelector ? $(scopeElement) : html;
+        const bonusOptions = scope.find(buttonSelector);
+        if (!bonusOptions.length) continue;
 
-    bonusOptions.on('click', async (event) => {
-        const button = event.currentTarget;
-        const option = button.dataset.option;
-        const cost = parseInt(button.dataset.cost);
+        const appliedEffects = scope.find(appliedSelector);
+        let remaining = parseInt(scope.find(remainingSelector).first().text(), 10) || 0;
+        const usedEffects = new Set();
+        const counters = {};
 
-        if (usedEffects.has(option) && option !== 'critical') {
-            ui.notifications?.warn(`This effect has already been applied.`);
-            return;
-        }
+        bonusOptions.on('click', async (event) => {
+            const button = event.currentTarget;
+            const option = button.dataset.option;
+            const cost = parseInt(button.dataset.cost, 10) || 0;
 
-        if (remaining < cost) {
-            ui.notifications?.warn(`Not enough bonus successes remaining.`);
-            return;
-        }
-
-        remaining -= cost;
-        html.find(remainingSelector).text(remaining);
-
-        const handler = handlers[option];
-        let effectHTML = "";
-        if (handler) {
-            effectHTML = await handler(button, { cost, counters });
-        } else if (DEBUG) {
-            console.debug(`No handler for option ${option}`);
-        }
-
-        if (effectHTML) {
-            appliedEffects.append(effectHTML);
-            usedEffects.add(option);
-        }
-
-        bonusOptions.each((i, btn) => {
-            if (parseInt(btn.dataset.cost) > remaining) {
-                $(btn).prop('disabled', true).addClass('disabled');
+            if (usedEffects.has(option) && option !== 'critical') {
+                ui.notifications?.warn(`This effect has already been applied.`);
+                return;
             }
+
+            if (remaining < cost) {
+                ui.notifications?.warn(`Not enough bonus successes remaining.`);
+                return;
+            }
+
+            remaining -= cost;
+            scope.find(remainingSelector).text(remaining);
+
+            const handler = handlers[option];
+            let effectHTML = "";
+            if (handler) {
+                effectHTML = await handler(button, { cost, counters });
+            } else if (DEBUG) {
+                console.debug(`No handler for option ${option}`);
+            }
+
+            if (effectHTML) {
+                appliedEffects.append(effectHTML);
+                usedEffects.add(option);
+            }
+
+            bonusOptions.each((i, btn) => {
+                if ((parseInt(btn.dataset.cost, 10) || 0) > remaining) {
+                    $(btn).prop('disabled', true).addClass('disabled');
+                }
+            });
         });
-    });
+    }
 }
 
 // Handlers for general bonus options
@@ -266,6 +274,7 @@ function bindApplyDamage(html) {
  */
 export function applyBonusHandlers(html) {
     bindBonusHandlers(html, {
+        scopeSelector: '.attack-card',
         buttonSelector: '.bonus-option',
         remainingSelector: '.remaining-successes',
         appliedSelector: '.applied-effects',
@@ -273,6 +282,7 @@ export function applyBonusHandlers(html) {
     });
 
     bindBonusHandlers(html, {
+        scopeSelector: '.spell-casting-section',
         buttonSelector: '.spell-bonus, .spell-custom-bonus',
         remainingSelector: '.remaining-successes',
         appliedSelector: '.applied-effects',
@@ -280,6 +290,7 @@ export function applyBonusHandlers(html) {
     });
 
     bindBonusHandlers(html, {
+        scopeSelector: '.spell-attack-section',
         buttonSelector: '.attack-bonus',
         remainingSelector: '.attack-remaining-successes',
         appliedSelector: '.attack-applied-effects',

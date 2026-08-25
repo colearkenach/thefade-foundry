@@ -1,6 +1,7 @@
 // Builds Token Action HUD actions from a selected The Fade actor.
 import { ACTION_TYPE, ATTRIBUTES, GROUP } from "./constants.js";
 import { getAllSkills } from "../../skills.js";
+import { formatSpellSuccessRequirements } from "../../spell-rules.js";
 
 export function makeActionHandler(coreApi) {
     return class TheFadeActionHandler extends coreApi.ActionHandler {
@@ -101,7 +102,11 @@ export function makeActionHandler(coreApi) {
                 encodedValue: this._enc(ACTION_TYPE.spell, s.id),
                 img: s.img,
                 info1: { text: s.system?.school || "" },
-                info2: { text: s.system?.successes ? `DT ${s.system.successes}` : "" }
+                info2: {
+                    text: s.system?.school === "Runes"
+                        ? formatSpellSuccessRequirements(s.system, { compact: true })
+                        : `DT ${formatSpellSuccessRequirements(s.system)}`
+                }
             }));
             actions.sort((a, b) => a.name.localeCompare(b.name));
             this._push(GROUP.spells.id, actions);

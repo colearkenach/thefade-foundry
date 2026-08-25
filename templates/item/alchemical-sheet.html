@@ -1,0 +1,82 @@
+<form class="{{cssClass}} item-sheet-shell alchemical-sheet {{#if system.darkMagic}}is-blightcraft{{/if}}" autocomplete="off">
+  <header class="sheet-header alchemical-sheet-header">
+    <img class="profile-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name-dynamic"><input name="name" type="text" value="{{item.name}}" placeholder="Alchemical item name"/></h1>
+      <div class="item-type-badge alchemical {{#if system.darkMagic}}dark-magic{{/if}}">
+        {{alchemicalDiscipline}}{{#if system.darkMagic}} · Dark Magic{{/if}}
+      </div>
+    </div>
+    {{#if canCraftAlchemical}}
+    <button type="button" class="item-action-btn craft-alchemical" title="Spend materials and make a crafting check">
+      <i class="fas fa-flask-vial"></i> Craft
+    </button>
+    {{/if}}
+  </header>
+
+  <nav class="sheet-tabs tabs alchemical-sheet-tabs" data-group="primary">
+    <a class="item" data-tab="description"><i class="fas fa-book-open"></i> Description</a>
+    <a class="item" data-tab="crafting"><i class="fas fa-mortar-pestle"></i> Crafting</a>
+  </nav>
+
+  <section class="sheet-body alchemical-sheet-body">
+    <div class="tab" data-group="primary" data-tab="description">
+      <div class="alchemical-panel">
+        <div class="alchemical-panel-heading"><i class="fas fa-align-left"></i> Effect</div>
+        <textarea name="system.description" rows="9" placeholder="Describe what the item does and how it is used...">{{system.description}}</textarea>
+      </div>
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="crafting">
+      <div class="alchemical-panel">
+        <div class="alchemical-panel-heading"><i class="fas fa-mortar-pestle"></i> Formula</div>
+        <div class="alchemical-field-grid">
+          <div class="form-group">
+            <label>Craft Skill</label>
+            <select name="system.skill">{{selectOptions alchemicalSkillOptions selected=system.skill}}</select>
+          </div>
+          <div class="form-group">
+            <label>DT</label>
+            <input type="number" name="system.dt" value="{{system.dt}}" min="1" step="1" data-dtype="Number"/>
+          </div>
+          <div class="form-group">
+            <label>Base Cost</label>
+            <div class="form-field-with-unit"><input type="number" name="system.price" value="{{system.price}}" min="0" step="1" data-dtype="Number"/><span>sp.</span></div>
+          </div>
+          <div class="form-group">
+            <label>Crafting Materials</label>
+            <div class="alchemical-derived-value"><strong>{{alchemicalCraftCost}} sp.</strong><span>½ Base Cost</span></div>
+          </div>
+          <div class="form-group">
+            <label>Weight</label>
+            <div class="form-field-with-unit"><input type="number" name="system.weight" value="{{system.weight}}" min="0" step="0.1" data-dtype="Number"/><span>lb.</span></div>
+          </div>
+          <div class="form-group">
+            <label>Quantity</label>
+            <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" step="1" data-dtype="Number"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="alchemical-panel alchemical-magic-panel {{#if system.darkMagic}}is-dark{{/if}}">
+        <div class="alchemical-panel-heading"><i class="fas fa-moon"></i> Discipline</div>
+        <label class="form-field alchemical-dark-toggle">
+          <input type="checkbox" name="system.darkMagic" {{checked system.darkMagic}}/>
+          <span>Dark Magic Alchemy</span>
+        </label>
+        <p class="hint">
+          {{#if system.darkMagic}}
+          This formula is <strong>Blightcraft</strong> and is listed as Dark Magic.
+          {{else}}
+          Enable this when the formula is Dark Magic Alchemy; its discipline will be listed as Blightcraft.
+          {{/if}}
+        </p>
+      </div>
+
+      <div class="alchemical-rules-note">
+        <i class="fas fa-circle-info"></i>
+        <div><strong>Alchemy is item crafting, not spellcasting.</strong> An attempt uses {{system.skill}} against DT {{system.dt}} and consumes {{alchemicalCraftCost}} sp. of materials whether it succeeds or fails. It never causes a spell mishap.</div>
+      </div>
+    </div>
+  </section>
+</form>

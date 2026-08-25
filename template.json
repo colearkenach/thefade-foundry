@@ -276,6 +276,7 @@
       "path",
       "monsterpath",
       "spell",
+      "alchemical",
       "talent",
       "clothing",
       "species",
@@ -390,12 +391,31 @@
       "isDarkMagic": false,
       "damage": "",
       "damageType": "",
+      "damageComponents": [],
+      "sanityDamage": "",
+      "statusEffects": [],
+      "buffEffects": [],
+      "weapons": "",
+      "recipeCost": "",
       "time": "Instantaneous",
       "successes": 3,
+      "symbologySuccesses": null,
+      "spellcastingSuccesses": null,
       "attack": "",
+      "attackEffects": {
+        "Avoid": "",
+        "Resilience": "",
+        "Grit": ""
+      },
       "range": "",
       "bonusEffect": "",
       "mishapModifier": "none"
+    },
+    "alchemical": {
+      "templates": [ "base", "physical" ],
+      "skill": "Chemistry",
+      "dt": 1,
+      "darkMagic": false
     },
     "talent": {
       "templates": [ "base" ],

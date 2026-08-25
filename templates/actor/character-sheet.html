@@ -1,6 +1,6 @@
 <form class="{{cssClass}} flexcol" autocomplete="off">
     <header class="sheet-header redesigned-header">
-        <!--<img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" />-->
+        <img class="profile-img" src="{{actor.img}}" data-edit="img" title="Edit {{actor.name}}'s portrait" alt="{{actor.name}}" />
 
         <div class="header-fields">
             <div class="char-identity">
@@ -44,14 +44,14 @@
     </header>
 
     {{!-- Sheet Tab Navigation --}}
-    <nav class="sheet-tabs tabs" data-group="primary">
-        <a class="item" data-tab="main">Stats</a>
-        <a class="item" data-tab="skills">Skills</a>
-        <a class="item" data-tab="inventory">Inventory</a>
-        <a class="item" data-tab="combat">Combat</a>
-        <a class="item" data-tab="paths">Abilities</a>
-        <a class="item" data-tab="spells">Magic</a>
-        <a class="item" data-tab="background">Background</a>
+    <nav class="sheet-tabs tabs character-tabs" data-group="primary" aria-label="Character sheet sections">
+        <a class="item" data-tab="main"><i class="fas fa-chart-bar"></i><span>Stats</span></a>
+        <a class="item" data-tab="skills"><i class="fas fa-list-check"></i><span>Skills</span></a>
+        <a class="item" data-tab="inventory"><i class="fas fa-sack"></i><span>Inventory</span></a>
+        <a class="item" data-tab="combat"><i class="fas fa-shield-halved"></i><span>Combat</span></a>
+        <a class="item" data-tab="paths"><i class="fas fa-star"></i><span>Abilities</span></a>
+        <a class="item" data-tab="spells"><i class="fas fa-wand-magic-sparkles"></i><span>Magic</span></a>
+        <a class="item" data-tab="background"><i class="fas fa-book-open"></i><span>Background</span></a>
     </nav>
 
     {{!-- Sheet Body --}}

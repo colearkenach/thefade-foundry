@@ -14,7 +14,7 @@ import { TheFadeCharacterSheet } from './src/character-sheet.js';
 import { TheFadeNPCSheet } from './src/npc-sheet.js';
 import { TheFadePartySheet } from './src/party-sheet.js';
 import { TheFadeShopSheet } from './src/shop-sheet.js';
-import { computePerRoundDamage, CONDITION_EFFECTS } from './src/conditions.js';
+import { computePerRoundDamage, registerTheFadeStatusEffects } from './src/conditions.js';
 import { getActiveTemporaryBonusEntries } from './src/abilities.js';
 import { normalizeMechanicalBonus } from './src/mechanical-bonuses.js';
 import './src/token-facing.js';
@@ -76,7 +76,7 @@ const SPECIES_ITEM_TYPES = ["species", "monsterspecies"];
 function registerItemSheets() {
     Items.registerSheet("thefade", TheFadeItemSheet, {
         types: [
-            "weapon", "armor", "skill", "path", "monsterpath", "spell", "talent", "trait", "precept",
+            "weapon", "armor", "skill", "path", "monsterpath", "spell", "alchemical", "talent", "trait", "precept",
             "species", "monsterspecies", "drug", "poison", "disease", "biological", "medical", "travel",
             "mount", "vehicle", "musical", "potion", "staff", "wand", "gate",
             "communication", "containment", "dream", "fleshcraft", "magicitem", "clothing",
@@ -162,10 +162,11 @@ Hooks.once('init', async function () {
     // Define custom document classes
     CONFIG.Actor.documentClass = TheFadeActor;
     CONFIG.Item.documentClass = TheFadeItem;
+    registerTheFadeStatusEffects();
 
     // Define all available item types (must match template.json)
     CONFIG.Item.types = [
-        "weapon", "armor", "skill", "path", "monsterpath", "spell", "talent", "species", "monsterspecies",
+        "weapon", "armor", "skill", "path", "monsterpath", "spell", "alchemical", "talent", "species", "monsterspecies",
         "drug", "poison", "disease", "biological", "medical", "travel", "mount", "vehicle",
         "musical", "potion", "staff", "wand", "gate", "communication",
         "containment", "dream", "fleshcraft", "magicitem", "clothing", "trait", "precept",
@@ -180,6 +181,7 @@ Hooks.once('init', async function () {
         path: "TYPES.Item.path",
         monsterpath: "TYPES.Item.monsterpath",
         spell: "TYPES.Item.spell",
+        alchemical: "TYPES.Item.alchemical",
         talent: "TYPES.Item.talent",
         trait: "TYPES.Item.trait",
         precept: "TYPES.Item.precept",
@@ -372,7 +374,7 @@ Hooks.once('init', async function () {
     // Register The Fade item sheet
     Items.registerSheet("thefade", TheFadeItemSheet, {
         types: [
-            "weapon", "armor", "skill", "path", "monsterpath", "spell", "talent", "trait", "precept",
+            "weapon", "armor", "skill", "path", "monsterpath", "spell", "alchemical", "talent", "trait", "precept",
             "species", "monsterspecies", "drug", "poison", "disease", "biological", "medical", "travel", "item",
             "mount", "vehicle", "musical", "potion", "staff", "wand", "gate",
             "communication", "containment", "dream", "fleshcraft", "magicitem", "clothing",
@@ -415,6 +417,7 @@ Hooks.once('init', async function () {
         "systems/thefade/templates/apps/gm-toolkit.html",
 
         "systems/thefade/templates/item/communication-sheet.html",
+        "systems/thefade/templates/item/alchemical-sheet.html",
         "systems/thefade/templates/item/containment-sheet.html",
         "systems/thefade/templates/item/dream-sheet.html",
         "systems/thefade/templates/item/drug-sheet.html",
@@ -1132,6 +1135,9 @@ async function clearLegacyTraitSource() {
  * System ready hook - final setup after all systems loaded
  */
 Hooks.once('ready', async function () {
+    // Some modules append generic statuses during init/setup. The Fade owns
+    // this palette, so restore the system list after all packages are ready.
+    registerTheFadeStatusEffects();
     game.thefade = foundry.utils.mergeObject(game.thefade || {}, { openGMToolkit }, { inplace: false });
 
     // One-shot migration: convert legacy skill items into actor.system.skills.

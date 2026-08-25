@@ -9,7 +9,14 @@ import {
     FALLBACK_ACTOR_DATA,
     UNIVERSAL_ABILITY_CATEGORIES
 } from './constants.js';
-import { aggregateConditionState, computeRollModifiers, summarizeConditionState } from './conditions.js';
+import {
+    aggregateConditionState,
+    computeRollModifiers,
+    summarizeConditionState,
+    CONDITION_EFFECTS,
+    CONDITION_INTENSITIES,
+    getConditionKeyFromStatusId
+} from './conditions.js';
 import { applyBaseDefenseStances, applyPassiveStances, summarizeStance, getDamageMitigation } from './stances.js';
 import { applyAddictionPenalties, isDarkMagicSpell, resetDailySin } from './dark-magic.js';
 import { applyAbilityEffects, getActiveTemporaryBonusEntries } from './abilities.js';
@@ -38,6 +45,62 @@ function coerceSheetNumber(value, fallback = 0) {
 * Handles core actor data preparation and functionality
 */
 export class TheFadeActor extends Actor {
+
+    /**
+     * Keep Foundry's native status-effect documents and The Fade's mechanical
+     * condition data in lockstep. Left-click toggles a status. Right-click on
+     * a tiered status applies it or advances Trivial → Moderate → Severe.
+     */
+    async toggleStatusEffect(statusId, { active, overlay = false } = {}) {
+        const conditionKey = getConditionKeyFromStatusId(statusId);
+        if (!conditionKey) return super.toggleStatusEffect(statusId, { active, overlay });
+
+        const definition = CONDITION_EFFECTS[conditionKey];
+        const state = this.system?.conditions?.[conditionKey] || {};
+        const immune = this.system?.statusImmunityLocks?.[conditionKey] === true;
+        const cycling = overlay && definition.tiered;
+        const activating = cycling || active === true;
+
+        if (activating && immune) {
+            ui.notifications.warn(game.i18n.format("THEFADE.TokenConditionImmune", {
+                actor: this.name,
+                condition: definition.label
+            }));
+            return false;
+        }
+
+        this._thefadeStatusEffectSync = true;
+        let result;
+        try {
+            if (cycling) {
+                if (state.active !== true) {
+                    result = await super.toggleStatusEffect(statusId, { active: true, overlay: false });
+                } else {
+                    result = true;
+                }
+            } else {
+                result = await super.toggleStatusEffect(statusId, { active, overlay: false });
+            }
+        } finally {
+            this._thefadeStatusEffectSync = false;
+        }
+
+        const update = {};
+        if (cycling) {
+            const currentIndex = CONDITION_INTENSITIES.indexOf(state.intensity || "trivial");
+            const nextIntensity = state.active === true
+                ? CONDITION_INTENSITIES[(Math.max(0, currentIndex) + 1) % CONDITION_INTENSITIES.length]
+                : "trivial";
+            update[`system.conditions.${conditionKey}.active`] = true;
+            update[`system.conditions.${conditionKey}.intensity`] = nextIntensity;
+        } else {
+            const nextActive = typeof active === "boolean" ? active : state.active !== true;
+            if (state.active !== nextActive) update[`system.conditions.${conditionKey}.active`] = nextActive;
+        }
+
+        if (Object.keys(update).length) await this.update(update);
+        return result;
+    }
 
     /**
     * Prepare actor data - called automatically by Foundry
@@ -602,7 +665,8 @@ export class TheFadeActor extends Actor {
         const soulValue = Number(data.attributes?.soul?.total ?? data.attributes?.soul?.value ?? 1);
         const sinThresholdBonus = data.darkMagic.sinThresholdBonus || 0;
         const sinThresholdItem  = Number(data.itemBonuses?.sinThreshold || 0);
-        data.darkMagic.sinThreshold = soulValue - darkMagicCount + sinThresholdBonus + sinThresholdItem;
+        data.darkMagic.sinThreshold = Math.max(1,
+            soulValue - darkMagicCount + sinThresholdBonus + sinThresholdItem);
     }
 
     /**

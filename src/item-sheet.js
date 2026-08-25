@@ -40,6 +40,17 @@ import {
     weaponQualityDisplay
 } from './weapon-rules.js';
 import {
+    buildSpellDamageProfile,
+    buildSpellEffectsProfile,
+    formatSpellAttackTargets,
+    formatSpellSuccessRequirements,
+    getSpellAttackTargets,
+    getSpellDamageComponents,
+    getSpellSuccessRequirements,
+    SPELL_STATUS_INTENSITY_OPTIONS,
+    SPELL_STATUS_OPTIONS
+} from './spell-rules.js';
+import {
     ITEM_POWER_OVERLAP_OPTIONS,
     countAttunements,
     getDarkMagicItemCorruptionValue,
@@ -47,6 +58,12 @@ import {
     isAttunementRemoved,
     isDarkMagicItem
 } from './item-power-rules.js';
+import {
+    ALCHEMICAL_SKILL_OPTIONS,
+    craftAlchemicalItem,
+    getAlchemicalCraftCost,
+    getAlchemicalDiscipline
+} from './alchemy-rules.js';
 
 function escapeHTML(value) {
     return String(value ?? "")
@@ -69,8 +86,8 @@ export class TheFadeItemSheet extends ItemSheet {
     static get defaultOptions() {
         return foundry.utils.mergeObject(super.defaultOptions, {
             classes: ["thefade", "sheet", "item", "species"],
-            width: 600,
-            height: 540,
+            width: 680,
+            height: 620,
             tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "description" }],
             scrollY: [".sheet-body", ".tab"]
         });
@@ -142,6 +159,7 @@ export class TheFadeItemSheet extends ItemSheet {
         try {
             data.itemCategoryOptions = {
                 "magicitem": "Item of Power",
+                "alchemical": "Alchemical Item",
                 "drug": "Drug",
                 "poison": "Poison",
                 "disease": "Disease",
@@ -204,7 +222,6 @@ export class TheFadeItemSheet extends ItemSheet {
 
             data.spellSchoolOptions = {
                 "General": "General",
-                "Alchemy": "Alchemy",
                 "Divine": "Divine",
                 "Elementalism": "Elementalism",
                 "Malevolent": "Malevolent",
@@ -386,7 +403,8 @@ export class TheFadeItemSheet extends ItemSheet {
                 "": "None",
                 "Avoid": "vs. Avoid",
                 "Resilience": "vs. Resilience",
-                "Grit": "vs. Grit"
+                "Grit": "vs. Grit",
+                "Resilience|Grit": "vs. Resilience and vs. Grit (two rolls)"
             };
 
             data.spellDamageTypeOptions = {
@@ -405,6 +423,9 @@ export class TheFadeItemSheet extends ItemSheet {
                 "Co": "Corruption (Co)",
                 "Ut": "Untyped (Ut)"
             };
+            data.spellDamageComponentTypeOptions = Object.fromEntries(
+                Object.entries(data.spellDamageTypeOptions).filter(([key]) => key !== "")
+            );
 
             data.mishapModifierOptions = {
                 "none": "None",
@@ -559,6 +580,61 @@ export class TheFadeItemSheet extends ItemSheet {
                 data.modSlotsOverCapacity = slotsUsed > slotsMax;
             }
 
+            if (this.item?.type === 'spell') {
+                const sys = this.item.system;
+                const sourceComponents = this.item._source?.system?.damageComponents;
+                const sourceDamage = Math.max(
+                    0,
+                    Number(this.item._source?.system?.damage) || parseInt(this.item._source?.system?.damage, 10) || 0
+                );
+
+                // Persist the component form when a legacy spell sheet is first
+                // opened. The old fields remain synchronized for integrations
+                // that still read damage/damageType.
+                if (
+                    !this._migratedSpellDamageComponents &&
+                    this.options.editable &&
+                    !this.item.pack &&
+                    (!Array.isArray(sourceComponents) || sourceComponents.length === 0) &&
+                    sourceDamage > 0
+                ) {
+                    this._migratedSpellDamageComponents = true;
+                    this.item.update({
+                        "system.damageComponents": [{
+                            id: foundry.utils.randomID(16),
+                            amount: sourceDamage,
+                            type: this.item._source.system.damageType || "Ut"
+                        }]
+                    });
+                }
+
+                data.spellDamageComponents = getSpellDamageComponents(sys);
+                const damageProfile = buildSpellDamageProfile(sys);
+                data.spellDamageTotal = damageProfile.total;
+                data.spellDamageDisplay = damageProfile.display;
+                const effectsProfile = buildSpellEffectsProfile(sys);
+                data.spellSanityDamage = effectsProfile.sanityDamage;
+                data.spellStatusEffects = effectsProfile.statusEffects;
+                data.spellBuffEffects = effectsProfile.buffEffects;
+                data.spellStatusOptions = SPELL_STATUS_OPTIONS;
+                data.spellStatusIntensityOptions = SPELL_STATUS_INTENSITY_OPTIONS;
+                const attackTargets = getSpellAttackTargets(sys);
+                data.spellAttackSelection = attackTargets.join("|");
+                data.spellAttackDisplay = formatSpellAttackTargets(sys);
+                data.spellAttacksAvoid = attackTargets.includes("Avoid");
+                data.spellAttacksResilience = attackTargets.includes("Resilience");
+                data.spellAttacksGrit = attackTargets.includes("Grit");
+            }
+
+            if (this.item?.type === 'alchemical') {
+                const sys = this.item.system;
+                data.alchemicalSkillOptions = ALCHEMICAL_SKILL_OPTIONS;
+                data.alchemicalDiscipline = getAlchemicalDiscipline(sys);
+                data.alchemicalCraftCost = getAlchemicalCraftCost(sys);
+                data.canCraftAlchemical = !!this.item.parent;
+                data.canAffordAlchemical = (Number(this.item.parent?.system?.currency?.serpents) || 0) >= data.alchemicalCraftCost;
+            }
+
             // AP data for armor and armor-like Items of Power.
             if (this.item?.type === 'armor' || (this.item?.type === 'magicitem' && this.item.system?.conflictsArmor)) {
                 const sys = this.item.system;
@@ -629,6 +705,13 @@ export class TheFadeItemSheet extends ItemSheet {
         if (!this.options.editable) return;
 
         html.find('.roll-hazard').click(event => this._onRollHazard(event));
+
+        if (this.item.type === 'alchemical') {
+            html.find('.craft-alchemical').click(async event => {
+                event.preventDefault();
+                await craftAlchemicalItem(this.item.parent, this.item);
+            });
+        }
 
         // Add drag-and-drop highlighting when dragging over the skills tab
         if (this.item.type === 'path' || this.item.type === 'monsterpath') {
@@ -1305,16 +1388,28 @@ export class TheFadeItemSheet extends ItemSheet {
             html.find('.cast-spell').click(async ev => {
                 ev.preventDefault();
                 const sys = this.item.system;
+                const damageProfile = buildSpellDamageProfile(sys);
+                const effectsProfile = buildSpellEffectsProfile(sys);
+                const successRequirements = getSpellSuccessRequirements(sys);
                 ChatMessage.create({
                     speaker: this.item.parent ? ChatMessage.getSpeaker({ actor: this.item.parent }) : undefined,
                     content: `<div class="thefade chat-card">
                         <h3>${this.item.name}</h3>
                         <p class="item-type-label">${sys.school || "Spell"}${sys.isDarkMagic ? " — Dark Magic" : ""}</p>
-                        ${sys.damage ? `<p><strong>Damage:</strong> ${sys.damage}${sys.damageType ? ` (${sys.damageType})` : ""}</p>` : ""}
-                        ${sys.attack ? `<p><strong>Attack:</strong> ${sys.attack}</p>` : ""}
+                        ${successRequirements.isRune ? `<p><strong>Checks:</strong> Symbology ${successRequirements.symbology} to draw, then Spellcasting ${successRequirements.spellcasting} to activate</p>` : ""}
+                        ${sys.weapons ? `<p><strong>Weapons:</strong> ${sys.weapons}</p>` : ""}
+                        ${sys.recipeCost ? `<p><strong>Recipe Cost:</strong> ${sys.recipeCost}</p>` : ""}
+                        ${damageProfile.total ? `<p><strong>HP Damage:</strong> ${damageProfile.display}</p>` : ""}
+                        ${effectsProfile.sanityDamage ? `<p><strong>Sanity Damage:</strong> ${effectsProfile.sanityDamage}</p>` : ""}
+                        ${effectsProfile.statusEffects.length ? `<p><strong>Inflicts:</strong></p><ul>${effectsProfile.statusEffects.map(effect => `<li>${effect.display}</li>`).join("")}</ul>` : ""}
+                        ${effectsProfile.buffEffects.length ? `<p><strong>Grants:</strong></p><ul>${effectsProfile.buffEffects.map(buff => `<li>${buff.display}</li>`).join("")}</ul>` : ""}
+                        ${getSpellAttackTargets(sys).length ? `<p><strong>Attack:</strong> ${formatSpellAttackTargets(sys)}</p>` : ""}
+                        ${getSpellAttackTargets(sys).map(defense => sys.attackEffects?.[defense]
+                            ? `<p><strong>${defense} Effect:</strong> ${sys.attackEffects[defense]}</p>`
+                            : "").join("")}
                         ${sys.range ? `<p><strong>Range:</strong> ${sys.range}</p>` : ""}
                         ${sys.time ? `<p><strong>Casting Time:</strong> ${sys.time}</p>` : ""}
-                        ${sys.successes ? `<p><strong>Successes Needed:</strong> ${sys.successes}</p>` : ""}
+                        ${!successRequirements.isRune ? `<p><strong>Successes Needed:</strong> ${formatSpellSuccessRequirements(sys)}</p>` : ""}
                         ${sys.bonusEffect ? `<p><strong>Bonus Effect:</strong> ${sys.bonusEffect}</p>` : ""}
                         ${this.item.system.description ? `<p>${this.item.system.description}</p>` : ""}
                     </div>`
@@ -1425,7 +1520,7 @@ export class TheFadeItemSheet extends ItemSheet {
             });
         }
 
-        // Damage components (weapons only)
+        // Weapon quality controls
         if (this.item.type === 'weapon') {
             html.find('.weapon-quality-add').on('click', async ev => {
                 ev.preventDefault();
@@ -1442,6 +1537,22 @@ export class TheFadeItemSheet extends ItemSheet {
                 await this.item.update({ "system.qualityIds": qualityIds });
             });
 
+        }
+
+        // Typed damage components shared by weapon and spell sheets.
+        if (this.item.type === 'weapon' || this.item.type === 'spell') {
+            const updateDamageComponents = comps => {
+                if (this.item.type === 'spell') {
+                    const active = comps.filter(component => component.amount > 0);
+                    return this.item.update({
+                        "system.damageComponents": comps,
+                        "system.damage": active.reduce((sum, component) => sum + component.amount, 0) || "",
+                        "system.damageType": active[0]?.type || ""
+                    });
+                }
+                return this.item.update({ "system.damageComponents": comps });
+            };
+
             const saveDamageComponents = () => {
                 const comps = [];
                 html.find('.dmg-comp-row').each((i, el) => {
@@ -1452,24 +1563,111 @@ export class TheFadeItemSheet extends ItemSheet {
                         type: $row.find('.dmg-comp-type').val() || "Ut"
                     });
                 });
-                this.item.update({ "system.damageComponents": comps });
+                updateDamageComponents(comps);
             };
 
             html.find('.dmg-comp-add').on('click', ev => {
                 ev.preventDefault();
                 const comps = foundry.utils.deepClone(this.item.system.damageComponents || []);
-                comps.push({ id: foundry.utils.randomID(16), amount: 0, type: "B" });
-                this.item.update({ "system.damageComponents": comps });
+                comps.push({
+                    id: foundry.utils.randomID(16),
+                    amount: 0,
+                    type: this.item.type === 'weapon' ? "B" : "Ut"
+                });
+                updateDamageComponents(comps);
             });
 
             html.find('.dmg-comp-delete').on('click', ev => {
                 ev.preventDefault();
                 const id = ev.currentTarget.dataset.dmgId;
                 const comps = (this.item.system.damageComponents || []).filter(c => c.id !== id);
-                this.item.update({ "system.damageComponents": comps });
+                updateDamageComponents(comps);
             });
 
             html.find('.dmg-comp-amount, .dmg-comp-type').on('change', () => saveDamageComponents());
+        }
+
+        // Structured spell outcomes: status conditions and descriptive buffs.
+        if (this.item.type === 'spell') {
+            const updateStatusEffects = effects => this.item.update({ "system.statusEffects": effects });
+            const saveStatusEffects = () => {
+                const effects = [];
+                html.find('.spell-status-row:not(.spell-effect-row-header)').each((i, element) => {
+                    const row = $(element);
+                    effects.push({
+                        id: row.data('effect-id') || foundry.utils.randomID(16),
+                        status: row.find('.spell-status-type').val() || "pain",
+                        intensity: row.find('.spell-status-intensity').val() || "",
+                        duration: String(row.find('.spell-status-duration').val() || "").trim(),
+                        notes: String(row.find('.spell-status-notes').val() || "").trim()
+                    });
+                });
+                return updateStatusEffects(effects);
+            };
+
+            html.find('.spell-status-add').on('click', event => {
+                event.preventDefault();
+                const effects = foundry.utils.deepClone(this.item.system.statusEffects || []);
+                effects.push({
+                    id: foundry.utils.randomID(16),
+                    status: "pain",
+                    intensity: "trivial",
+                    duration: "",
+                    notes: ""
+                });
+                updateStatusEffects(effects);
+            });
+
+            html.find('.spell-status-delete').on('click', event => {
+                event.preventDefault();
+                const id = event.currentTarget.dataset.effectId;
+                updateStatusEffects((this.item.system.statusEffects || []).filter((effect, index) =>
+                    (effect.id || `status-${index}`) !== id
+                ));
+            });
+
+            html.find('.spell-status-type, .spell-status-intensity, .spell-status-duration, .spell-status-notes')
+                .on('change', () => saveStatusEffects());
+
+            const updateBuffEffects = buffs => this.item.update({ "system.buffEffects": buffs });
+            const saveBuffEffects = () => {
+                const buffs = [];
+                html.find('.spell-buff-row:not(.spell-effect-row-header)').each((i, element) => {
+                    const row = $(element);
+                    buffs.push({
+                        id: row.data('buff-id') || foundry.utils.randomID(16),
+                        name: String(row.find('.spell-buff-name').val() || "").trim(),
+                        target: String(row.find('.spell-buff-target').val() || "").trim(),
+                        duration: String(row.find('.spell-buff-duration').val() || "").trim(),
+                        description: String(row.find('.spell-buff-description').val() || "").trim()
+                    });
+                });
+                return updateBuffEffects(buffs);
+            };
+
+            html.find('.spell-buff-add').on('click', event => {
+                event.preventDefault();
+                const buffs = foundry.utils.deepClone(this.item.system.buffEffects || []);
+                buffs.push({
+                    id: foundry.utils.randomID(16),
+                    name: "",
+                    target: "",
+                    duration: "",
+                    description: ""
+                });
+                updateBuffEffects(buffs);
+            });
+
+            html.find('.spell-buff-delete').on('click', event => {
+                event.preventDefault();
+                const id = event.currentTarget.dataset.buffId;
+                updateBuffEffects((this.item.system.buffEffects || []).filter((buff, index) =>
+                    (buff.id || `buff-${index}`) !== id
+                ));
+            });
+
+            html.find('.spell-buff-name, .spell-buff-target, .spell-buff-duration, .spell-buff-description')
+                .on('change', () => saveBuffEffects());
         }
 
         // Enchantment powers + modifications (weapons and armor)

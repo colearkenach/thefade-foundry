@@ -8,6 +8,57 @@
 
 export const CONDITION_INTENSITIES = ["trivial", "moderate", "severe"];
 
+// Reuse Foundry's bundled monochrome SVGs so status icons remain readable at
+// token scale and do not add a second asset pipeline to the system.
+export const CONDITION_STATUS_ICONS = Object.freeze({
+    bleed: "icons/svg/blood.svg",
+    blindness: "icons/svg/blind.svg",
+    confusion: "icons/svg/mystery-man.svg",
+    dazed: "icons/svg/daze.svg",
+    deafness: "icons/svg/deaf.svg",
+    fatigue: "icons/svg/downgrade.svg",
+    fear: "icons/svg/terror.svg",
+    flatFooted: "icons/svg/falling.svg",
+    illness: "icons/svg/biohazard.svg",
+    pain: "icons/svg/degen.svg",
+    paralysis: "icons/svg/paralysis.svg",
+    sleep: "icons/svg/sleep.svg",
+    staggered: "icons/svg/walk.svg",
+    stunned: "icons/svg/lightning.svg"
+});
+
+export const CONDITION_STATUS_PREFIX = "thefade.";
+
+export function getConditionStatusId(conditionKey) {
+    return CONDITION_EFFECTS[conditionKey] ? `${CONDITION_STATUS_PREFIX}${conditionKey}` : null;
+}
+
+export function getConditionKeyFromStatusId(statusId) {
+    if (typeof statusId !== "string" || !statusId.startsWith(CONDITION_STATUS_PREFIX)) return null;
+    const conditionKey = statusId.slice(CONDITION_STATUS_PREFIX.length);
+    return CONDITION_EFFECTS[conditionKey] ? conditionKey : null;
+}
+
+/**
+ * Make Foundry's Assign Status Effects palette system-owned. The Fade does not
+ * use Foundry's generic conditions or module-added status definitions.
+ */
+export function registerTheFadeStatusEffects() {
+    CONFIG.statusEffects = Object.entries(CONDITION_EFFECTS).map(([key, definition]) => ({
+        id: getConditionStatusId(key),
+        name: definition.label,
+        img: CONDITION_STATUS_ICONS[key],
+        hud: { actorTypes: ["character", "npc"] },
+        flags: {
+            thefade: {
+                condition: key,
+                tiered: definition.tiered === true
+            }
+        }
+    }));
+    return CONFIG.statusEffects;
+}
+
 // Effect primitives returned by state()/roll():
 //   state() → { avoidDelta, gritDelta, resilienceDelta, speedMultiplier,
 //               minorLoss, majorLoss, reactionLoss, reactionLimit,

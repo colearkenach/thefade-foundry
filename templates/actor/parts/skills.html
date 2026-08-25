@@ -1,4 +1,12 @@
 <section class="skills-section">
+    <div class="sheet-filter-bar skills-filter-bar" role="search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="search" class="skills-filter" placeholder="Find a skill by name, rank, or attribute..." aria-label="Filter skills" autocomplete="off" />
+        <span class="sheet-filter-count" aria-live="polite"></span>
+        <button type="button" class="sheet-filter-clear" title="Clear skill filter" aria-label="Clear skill filter"><i class="fas fa-times"></i></button>
+    </div>
+    <p class="sheet-filter-empty skills-filter-empty" hidden>No skills match this search.</p>
+
     {{!-- Custom skill creation bar --}}
     <details class="custom-skills-bar inv-block sheet-state-section" data-section-key="skills-custom" {{#if skillCustomSectionOpen}}open{{/if}}>
         <summary class="inv-heading sheet-section-summary">

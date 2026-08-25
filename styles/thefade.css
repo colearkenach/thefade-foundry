@@ -351,6 +351,250 @@
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
 }
 
+/* ============================================================
+   TOKEN HUD — snapped hex facing, stances, and native statuses
+   ============================================================ */
+#token-hud .thefade-token-state-control {
+    color: #f0d785;
+}
+
+#token-hud .thefade-token-state-palette[hidden] {
+    display: none !important;
+}
+
+#token-hud .thefade-token-state-palette {
+    position: absolute;
+    z-index: 110;
+    top: calc(100% + 10px);
+    left: 50%;
+    width: min(330px, calc(100vw - 24px));
+    max-height: min(520px, calc(100vh - 24px));
+    overflow: auto;
+    transform: translateX(-50%);
+    box-sizing: border-box;
+    padding: 10px;
+    color: #e8e5df;
+    background: rgba(22, 23, 27, 0.98);
+    border: 1px solid rgba(221, 190, 99, 0.72);
+    border-radius: 7px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+    pointer-events: auto;
+    font-family: var(--font-body, "Signika", sans-serif);
+    text-align: left;
+}
+
+#token-hud .thefade-token-state-palette > header,
+#token-hud .thefade-token-state-palette .thefade-token-section-title,
+#token-hud .thefade-token-state-palette > footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#token-hud .thefade-token-state-palette > header {
+    padding: 0 0 8px;
+    color: #f0d785;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.95rem;
+}
+
+#token-hud .thefade-token-state-palette > section {
+    margin: 8px 0 0;
+    padding: 8px 0 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#token-hud .thefade-token-state-palette > section:first-of-type {
+    border-top: 0;
+}
+
+#token-hud .thefade-token-state-palette button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 0;
+    height: 29px;
+    min-height: 0;
+    margin: 0;
+    padding: 3px 7px;
+    color: #dedbd5;
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+    box-shadow: none;
+    line-height: 1;
+}
+
+#token-hud .thefade-token-state-palette button:hover,
+#token-hud .thefade-token-state-palette button:focus-visible,
+#token-hud .thefade-token-state-palette button.is-active {
+    color: #fff4ce;
+    background: rgba(210, 171, 62, 0.2);
+    border-color: rgba(240, 215, 133, 0.78);
+}
+
+#token-hud .thefade-token-state-palette .thefade-palette-close {
+    width: 27px;
+    height: 27px;
+    padding: 0;
+    color: #b9b7b2;
+    background: transparent;
+    border-color: transparent;
+}
+
+#token-hud .thefade-token-section-title {
+    margin-bottom: 6px;
+    color: #c9c5bd;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+#token-hud .thefade-token-section-title output {
+    color: #f0d785;
+}
+
+#token-hud .thefade-hex-facing-pad {
+    position: relative;
+    width: 250px;
+    height: 184px;
+    margin: 2px auto 0;
+}
+
+#token-hud .thefade-token-state-palette .thefade-hex-direction,
+#token-hud .thefade-token-state-palette .thefade-facing-aim {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 72px;
+    height: 58px;
+    padding: 5px 4px;
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    border-radius: 0;
+    clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+#token-hud .thefade-token-state-palette .thefade-hex-direction strong {
+    color: #f0eee8;
+    font-size: 0.72rem;
+}
+
+#token-hud .thefade-token-state-palette .thefade-hex-direction small,
+#token-hud .thefade-token-state-palette .thefade-facing-aim small {
+    color: inherit;
+    font-size: 0.56rem;
+    font-weight: 700;
+}
+
+/* Pointy-topped grid: NE, E, SE, SW, W, NW. */
+#token-hud .thefade-hex-facing-pad.is-pointy .dir-0 { left: 143px; top: 1px; }
+#token-hud .thefade-hex-facing-pad.is-pointy .dir-1 { left: 177px; top: 63px; }
+#token-hud .thefade-hex-facing-pad.is-pointy .dir-2 { left: 143px; top: 125px; }
+#token-hud .thefade-hex-facing-pad.is-pointy .dir-3 { left: 35px; top: 125px; }
+#token-hud .thefade-hex-facing-pad.is-pointy .dir-4 { left: 1px; top: 63px; }
+#token-hud .thefade-hex-facing-pad.is-pointy .dir-5 { left: 35px; top: 1px; }
+
+/* Flat-topped grid: N, NE, SE, S, SW, NW. */
+#token-hud .thefade-hex-facing-pad.is-flat .dir-0 { left: 89px; top: 0; }
+#token-hud .thefade-hex-facing-pad.is-flat .dir-1 { left: 161px; top: 31px; }
+#token-hud .thefade-hex-facing-pad.is-flat .dir-2 { left: 161px; top: 95px; }
+#token-hud .thefade-hex-facing-pad.is-flat .dir-3 { left: 89px; top: 126px; }
+#token-hud .thefade-hex-facing-pad.is-flat .dir-4 { left: 17px; top: 95px; }
+#token-hud .thefade-hex-facing-pad.is-flat .dir-5 { left: 17px; top: 31px; }
+
+#token-hud .thefade-token-state-palette .thefade-facing-aim {
+    left: 89px;
+    top: 63px;
+    color: #e9e6de;
+    background: rgba(8, 9, 11, 0.88);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+#token-hud .thefade-token-state-palette .thefade-hex-direction.zone-front {
+    color: #efffe8;
+    background: rgba(70, 133, 48, 0.58);
+    border-color: #79bd5c;
+}
+
+#token-hud .thefade-token-state-palette .thefade-hex-direction.zone-flank {
+    color: #fffbd6;
+    background: rgba(154, 130, 23, 0.52);
+    border-color: #f4d93f;
+}
+
+#token-hud .thefade-token-state-palette .thefade-hex-direction.zone-backflank {
+    color: #fff0dc;
+    background: rgba(157, 85, 21, 0.5);
+    border-color: #ee9838;
+}
+
+#token-hud .thefade-token-state-palette .thefade-hex-direction.zone-back {
+    color: #ffe2e2;
+    background: rgba(137, 33, 33, 0.55);
+    border-color: #e33838;
+}
+
+#token-hud .thefade-token-state-palette .thefade-hex-direction.is-active {
+    box-shadow: inset 0 0 0 2px #fff4c4, 0 0 9px rgba(240, 215, 133, 0.7);
+}
+
+#token-hud .thefade-facing-help {
+    margin: 6px 0 0;
+    color: #aaa69e;
+    font-size: 0.62rem;
+    line-height: 1.35;
+    text-align: center;
+}
+
+#token-hud .thefade-token-stance-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+}
+
+#token-hud .thefade-token-stance-grid button {
+    width: 100%;
+    font-size: 0.67rem;
+}
+
+/* Foundry's Assign Status Effects palette is the sole condition UI. */
+#token-hud .status-effects .effect-control[data-status-id^="thefade."] {
+    box-sizing: border-box;
+    border: 2px solid transparent;
+    border-radius: 4px;
+}
+
+#token-hud .status-effects .effect-control[data-status-id^="thefade."].active {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+#token-hud .status-effects .effect-control.thefade-status-trivial {
+    border-color: #74a7d8;
+}
+
+#token-hud .status-effects .effect-control.thefade-status-moderate {
+    border-color: #d79a47;
+}
+
+#token-hud .status-effects .effect-control.thefade-status-severe {
+    border-color: #c85050;
+}
+
+#token-hud .status-effects .effect-control.thefade-status-immune {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+
+@media (max-width: 600px) {
+    #token-hud .thefade-token-state-palette {
+        width: min(300px, calc(100vw - 12px));
+    }
+}
+
 .thefade .grid-6col {
   grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
 }
@@ -7232,6 +7476,149 @@ select[name="system.aura.color"] option[value="white"] {
     }
 }
 
+/* ============================================================
+   ALCHEMICAL ITEM SHEET — crafting profile + Blightcraft
+   ============================================================ */
+.thefade.sheet.item .alchemical-sheet {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.thefade.sheet.item .alchemical-sheet-header { flex: 0 0 auto; }
+
+.thefade.sheet.item .alchemical-sheet-header .craft-alchemical {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    min-width: 88px;
+    padding: 7px 12px;
+    flex: 0 0 auto;
+}
+
+.thefade.sheet.item .alchemical-sheet-tabs .item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: 1 1 0;
+}
+
+.thefade.sheet.item .alchemical-sheet-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 10px;
+}
+
+.thefade.sheet.item .alchemical-panel {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    background: var(--bg-surface-alt);
+    border: 1px solid var(--border-faint);
+    border-radius: 3px;
+}
+
+.thefade.sheet.item .alchemical-panel-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 9px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-faint);
+    color: var(--accent-gold);
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+}
+
+.thefade.sheet.item .alchemical-panel textarea {
+    width: 100%;
+    min-height: 185px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+.thefade.sheet.item .alchemical-field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 16px;
+}
+
+.thefade.sheet.item .alchemical-field-grid .form-group { margin: 0; }
+
+.thefade.sheet.item .form-field-with-unit {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.thefade.sheet.item .alchemical-derived-value {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 30px;
+    padding: 5px 8px;
+    box-sizing: border-box;
+    background: var(--bg-surface-deep);
+    border: 1px solid var(--border-faint);
+}
+
+.thefade.sheet.item .alchemical-derived-value span { color: var(--text-muted); font-size: 0.72em; }
+
+.thefade.sheet.item .alchemical-magic-panel.is-dark {
+    border-color: #78627e;
+    background: linear-gradient(135deg, rgba(39,30,43,0.92), rgba(14,12,16,0.92));
+}
+
+.thefade.sheet.item .alchemical-dark-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.thefade.sheet.item .alchemical-rules-note {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 9px;
+    padding: 9px 11px;
+    background: var(--bg-surface-deep);
+    border-left: 3px solid var(--accent-gold);
+    color: var(--text-muted);
+    font-size: 0.82em;
+}
+
+.thefade .item-type-badge.alchemical.dark-magic { border-color: #8a6490; color: #d7b6dd; }
+.thefade.chat-card .craft-result.success { color: var(--color-success, #68b36b); }
+.thefade.chat-card .craft-result.failure { color: var(--color-failure, #d36565); }
+
+.thefade .alchemical-row > .alchemical-name { flex: 2.2 1 0; min-width: 0; }
+.thefade .alchemical-row > .alchemical-discipline { flex: 1.15 1 0; }
+.thefade .alchemical-row > .alchemical-skill { flex: 1 1 0; }
+.thefade .alchemical-row > .alchemical-dt { flex: 0 0 38px; text-align: center; }
+.thefade .alchemical-row > .alchemical-quantity { flex: 0 0 52px; text-align: center; }
+.thefade .alchemical-row > .alchemical-cost { flex: 1 1 0; text-align: center; }
+.thefade .alchemical-row > .alchemical-controls { flex: 0 0 68px; text-align: right; }
+.thefade .alchemical-row.is-blightcraft { background: rgba(75, 48, 80, 0.22); }
+.thefade .dark-magic-list-label {
+    display: block;
+    color: #c79ccc;
+    font-size: 0.64em;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+@media (max-width: 560px) {
+    .thefade.sheet.item .alchemical-field-grid { grid-template-columns: 1fr; }
+}
+
 /* ----- Panel / input polish on dark theme ----- */
 .thefade .panel {
     background: var(--bg-surface);
@@ -12551,5 +12938,821 @@ select[name="system.aura.color"] option[value="white"] {
     .thefade .access-modifier-grid,
     .thefade .gear-skill-grid { grid-template-columns: 1fr; }
     .thefade .challenge-status { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================================
+   SPELL ITEM SHEET — compact tabbed layout + typed damage
+   ============================================================ */
+.thefade.sheet.item .spell-sheet {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.thefade.sheet.item .spell-sheet-header {
+    flex: 0 0 auto;
+}
+
+.thefade.sheet.item .spell-cast-header {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    min-width: 82px;
+    margin: 0;
+    padding: 7px 12px;
+    flex: 0 0 auto;
+}
+
+.thefade.sheet.item .spell-sheet-tabs {
+    margin-bottom: 8px;
+}
+
+.thefade.sheet.item .spell-sheet-tabs .item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: 1 1 0;
+}
+
+.thefade.sheet.item .spell-sheet-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 10px;
+}
+
+.thefade.sheet.item .spell-overview-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+    margin-bottom: 10px;
+}
+
+.thefade.sheet.item .spell-summary-stat {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 3px;
+    padding: 8px 9px;
+    background: var(--bg-surface-deep);
+    border: 1px solid var(--border-faint);
+    border-top: 2px solid var(--accent-crimson);
+    border-radius: 3px;
+}
+
+.thefade.sheet.item .spell-summary-stat span {
+    color: var(--text-muted);
+    font-size: 0.68em;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.thefade.sheet.item .spell-summary-stat strong {
+    color: var(--text-primary);
+    font-size: 0.88em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.thefade.sheet.item .spell-panel {
+    min-width: 0;
+    padding: 8px 12px;
+    background: var(--bg-surface-alt);
+    border: 1px solid var(--border-faint);
+    border-radius: 3px;
+}
+
+.thefade.sheet.item .spell-panel-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: -2px 0 9px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-faint);
+    color: var(--accent-gold);
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+}
+
+.thefade.sheet.item .spell-description-panel textarea {
+    width: 100%;
+    min-height: 150px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+.thefade.sheet.item .spell-casting-grid {
+    gap: 10px 16px;
+}
+
+.thefade.sheet.item .spell-casting-grid .form-group {
+    margin-bottom: 0;
+}
+
+.thefade.sheet.item .spell-casting-grid .form-group > label:first-child {
+    margin-bottom: 0;
+}
+
+.thefade.sheet.item .spell-casting-grid .form-group > input,
+.thefade.sheet.item .spell-casting-grid .form-group > select,
+.thefade.sheet.item .spell-casting-grid .form-group > .spell-checkbox-field {
+    flex: 0 0 30px;
+    height: 30px;
+    min-height: 30px;
+    box-sizing: border-box;
+}
+
+.thefade.sheet.item .spell-casting-grid .spell-defense-effect textarea {
+    width: 100%;
+    min-height: 48px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+.thefade.sheet.item .spell-checkbox-field {
+    min-height: 26px;
+    padding: 0 7px;
+    background: var(--bg-surface-deep);
+    border: 1px solid var(--border-faint);
+    border-radius: 3px;
+}
+
+.thefade.sheet.item .spell-checkbox-field input {
+    margin: 0;
+}
+
+.thefade.sheet.item .spell-damage-panel {
+    margin-bottom: 8px;
+}
+
+.thefade.sheet.item .spell-damage-tracks-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(180px, 0.75fr);
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.thefade.sheet.item .spell-damage-tracks-grid .spell-damage-panel {
+    margin-bottom: 0;
+}
+
+.thefade.sheet.item .spell-sanity-damage-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: var(--text-muted);
+    font-size: 0.78em;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.thefade.sheet.item .spell-sanity-damage-field input {
+    width: 100%;
+    height: 30px;
+    box-sizing: border-box;
+    font-size: 1.05em;
+    text-transform: none;
+}
+
+.thefade.sheet.item .spell-sanity-preview {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    margin-top: 10px;
+    padding: 8px 9px;
+    background: rgba(54, 93, 110, 0.18);
+    border-left: 3px solid #63a4bd;
+}
+
+.thefade.sheet.item .spell-sanity-preview strong { color: #8bc7dc; font-size: 1.25em; }
+.thefade.sheet.item .spell-sanity-preview span { color: var(--text-muted); font-size: 0.78em; }
+
+.thefade.sheet.item .spell-status-panel,
+.thefade.sheet.item .spell-buff-panel {
+    margin-bottom: 10px;
+}
+
+.thefade.sheet.item .spell-effect-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: -2px 0 5px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-faint);
+    color: var(--accent-gold);
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+}
+
+.thefade.sheet.item .spell-effect-list-header span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.thefade.sheet.item .spell-status-add,
+.thefade.sheet.item .spell-buff-add,
+.thefade.sheet.item .spell-status-delete,
+.thefade.sheet.item .spell-buff-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: auto;
+    height: 24px;
+    min-height: 0;
+    padding: 0 8px;
+    border: 1px solid var(--border-faint);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.82em;
+}
+
+.thefade.sheet.item .spell-status-delete,
+.thefade.sheet.item .spell-buff-delete {
+    width: 24px;
+    padding: 0;
+}
+
+.thefade.sheet.item .spell-status-row,
+.thefade.sheet.item .spell-buff-row {
+    display: grid;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    padding: 5px 6px;
+    background: var(--bg-surface-deep);
+    border: 1px solid var(--border-faint);
+}
+
+.thefade.sheet.item .spell-status-row {
+    grid-template-columns: minmax(105px, 1fr) minmax(85px, 0.8fr) minmax(90px, 0.9fr) minmax(120px, 1.35fr) 24px;
+}
+
+.thefade.sheet.item .spell-buff-row {
+    grid-template-columns: minmax(105px, 1fr) minmax(80px, 0.75fr) minmax(90px, 0.9fr) minmax(140px, 1.5fr) 24px;
+}
+
+.thefade.sheet.item .spell-status-row select,
+.thefade.sheet.item .spell-status-row input,
+.thefade.sheet.item .spell-buff-row input {
+    width: 100%;
+    min-width: 0;
+    height: 27px;
+    box-sizing: border-box;
+}
+
+.thefade.sheet.item .spell-effect-row-header {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background: transparent;
+    border: 0;
+    color: var(--text-muted);
+    font-size: 0.67em;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.thefade.sheet.item .spell-effect-not-applicable {
+    color: var(--text-muted);
+    font-size: 0.74em;
+    font-style: italic;
+    text-align: center;
+}
+
+.thefade.sheet.item .spell-effect-empty {
+    padding: 9px;
+    color: var(--text-muted);
+    font-size: 0.82em;
+    font-style: italic;
+    text-align: center;
+}
+
+.thefade.sheet.item .spell-damage-panel .dmg-comp-header {
+    margin: 0 0 3px;
+    padding-top: 0;
+}
+
+.thefade.sheet.item .spell-damage-hint {
+    margin-bottom: 8px;
+}
+
+.thefade.sheet.item .spell-damage-total {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 7px;
+    padding: 7px 9px;
+    background: var(--bg-surface-deep);
+    border-left: 2px solid var(--accent-gold);
+    color: var(--text-muted);
+    font-size: 0.82em;
+}
+
+.thefade.sheet.item .spell-damage-total strong {
+    color: var(--accent-gold);
+    font-size: 1.2em;
+}
+
+.thefade.sheet.item .spell-damage-breakdown {
+    min-width: 0;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.thefade.sheet.item .spell-effects-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 10px;
+}
+
+.thefade.sheet.item .spell-effects-grid textarea {
+    width: 100%;
+    min-height: 48px;
+    box-sizing: border-box;
+}
+
+.thefade.chat-card .spell-damage-summary {
+    margin: 8px 0;
+    padding: 8px 10px;
+    background: var(--bg-surface-deep, rgba(0, 0, 0, 0.2));
+    border-left: 3px solid var(--accent-crimson, #a82828);
+}
+
+.thefade.chat-card .spell-damage-summary .damage-component-list {
+    margin-bottom: 5px;
+}
+
+.thefade.chat-card .spell-damage-total-label {
+    color: var(--text-muted, #b8aaa5);
+    font-size: 0.85em;
+}
+
+.thefade.chat-card .spell-sanity-summary {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 9px;
+    margin: 8px 0;
+    padding: 8px 10px;
+    background: rgba(54, 93, 110, 0.18);
+    border-left: 3px solid #63a4bd;
+}
+
+.thefade.chat-card .spell-sanity-summary > i { color: #8bc7dc; font-size: 1.2em; }
+.thefade.chat-card .spell-sanity-summary small { display: block; color: var(--text-muted, #b8aaa5); }
+
+.thefade.chat-card .spell-outcome-summary {
+    margin: 8px 0;
+    padding: 8px 10px;
+    background: var(--bg-surface-deep, rgba(0, 0, 0, 0.2));
+    border-left: 3px solid var(--accent-gold, #c5a45d);
+}
+
+.thefade.chat-card .spell-status-summary { border-left-color: #b56c55; }
+.thefade.chat-card .spell-buff-summary { border-left-color: #62936b; }
+.thefade.chat-card .spell-outcome-summary ul { margin: 5px 0 0; padding-left: 19px; }
+.thefade.chat-card .spell-outcome-summary li { margin: 2px 0; }
+
+.thefade .spells-block .spell-damage {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.thefade .spell-detail-item-list { grid-column: span 2; }
+.thefade .spell-detail-item-list .spell-detail-value > div + div { margin-top: 3px; }
+
+@media (max-width: 560px) {
+    .thefade.sheet.item .spell-overview-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .thefade.sheet.item .spell-effects-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .thefade.sheet.item .spell-damage-tracks-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================
+   SHEET UX PASS — compact shared chrome, readable forms, filters
+   ============================================================ */
+
+/* Character header: keep identity and common rolls available without
+   sacrificing the first third of the sheet viewport. */
+.thefade.sheet.actor form > .sheet-header.redesigned-header {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    width: auto;
+    min-height: 76px;
+    margin: 0 0 8px;
+    padding: 9px 12px;
+    justify-items: stretch;
+}
+
+.thefade.sheet.actor .redesigned-header .profile-img {
+    display: block;
+    width: 64px !important;
+    height: 64px !important;
+    border-width: 1px;
+}
+
+.thefade.sheet.actor .redesigned-header .header-fields {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-width: 0;
+}
+
+.thefade.sheet.actor .redesigned-header .char-identity {
+    display: block;
+    min-width: 0;
+}
+
+.thefade.sheet.actor .redesigned-header .charname input {
+    height: 36px;
+    min-width: 0;
+    padding: 0 0 2px;
+    font-size: 1.8rem;
+    line-height: 1.1;
+}
+
+.thefade.sheet.actor .redesigned-header .char-subtitle {
+    justify-content: flex-start;
+    gap: 4px 7px;
+    min-height: 16px;
+    margin-top: 3px;
+    font-size: 0.7rem;
+}
+
+.thefade.sheet.actor .redesigned-header .header-actions-row {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 7px;
+    margin: 0;
+}
+
+.thefade.sheet.actor .redesigned-header .dice-section .tool-header,
+.thefade.sheet.actor .redesigned-header .vital-init {
+    min-height: 34px;
+    box-sizing: border-box;
+}
+
+.thefade.sheet.actor .redesigned-header .dice-section .tool-header {
+    padding: 5px 8px;
+    font-size: 0.82rem;
+}
+
+.thefade.sheet.actor .redesigned-header .vital-init {
+    display: grid;
+    grid-template-columns: auto 68px 42px;
+    gap: 5px;
+    width: auto;
+    min-width: 174px;
+    padding: 3px 6px;
+    overflow: visible;
+}
+
+.thefade.sheet.actor .redesigned-header .vital-init label {
+    font-size: 0.64rem;
+}
+
+.thefade.sheet.actor .redesigned-header .vital-init .initiative-roll {
+    flex: 0 0 auto;
+    width: 68px !important;
+    padding: 4px 7px;
+    font-size: 0.75rem;
+}
+
+.thefade.sheet.actor .character-tabs {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+    margin: 0 0 10px;
+    padding: 0;
+}
+
+.thefade.sheet.actor .character-tabs .item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 7px 4px;
+    font-size: 0.76rem;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.thefade.sheet.actor .character-tabs .item i {
+    color: var(--text-dim);
+    font-size: 0.86em;
+}
+
+.thefade.sheet.actor .character-tabs .item:hover i,
+.thefade.sheet.actor .character-tabs .item.active i {
+    color: var(--accent-gold);
+}
+
+/* Lightweight in-sheet search, shared by Skills and Inventory. */
+.thefade .sheet-filter-bar {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto 28px;
+    align-items: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 4px 6px 4px 10px;
+    border: 1px solid var(--border-faint);
+    border-left: 3px solid var(--accent-crimson);
+    border-radius: 3px;
+    background: var(--bg-surface-deep);
+}
+
+.thefade .sheet-filter-bar > i {
+    color: var(--text-dim);
+    text-align: center;
+}
+
+.thefade .sheet-filter-bar input[type="search"] {
+    width: 100%;
+    height: 28px;
+    padding: 3px 7px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-primary);
+}
+
+.thefade .sheet-filter-bar input[type="search"]:focus {
+    border-color: var(--border-strong);
+    background: var(--bg-input);
+    box-shadow: none;
+}
+
+.thefade .sheet-filter-count {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    white-space: nowrap;
+}
+
+.thefade .sheet-filter-clear {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    min-width: 26px;
+    height: 26px;
+    min-height: 26px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.thefade .sheet-filter-clear.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.thefade .sheet-filter-clear:hover {
+    color: var(--accent-hot);
+}
+
+.thefade .sheet-filter-empty {
+    margin: 8px 0;
+    padding: 12px;
+    border: 1px dashed var(--border-faint);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.thefade .skills-section {
+    gap: 10px;
+}
+
+.thefade .inventory-filter-bar {
+    margin: 10px 0;
+}
+
+.thefade .inventory-tabs .tab-button.filter-no-match,
+.thefade .inventory-tabs .subtab-button.filter-no-match {
+    opacity: 0.32;
+}
+
+.thefade .inventory-tabs .subtab-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+    gap: 3px;
+    margin: 8px 0 10px;
+    padding: 3px;
+}
+
+.thefade .inventory-tabs .subtab-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 30px;
+    padding: 4px 7px;
+    line-height: 1.1;
+}
+
+/* One shared item-sheet shell across legacy and rules-heavy templates. */
+.thefade.sheet.item .item-sheet-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    color: var(--text-primary);
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-header {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 68px;
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-header .profile-img {
+    width: 56px !important;
+    height: 56px !important;
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-header .header-fields {
+    min-width: 0;
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-header .item-name-dynamic,
+.thefade.sheet.item .item-sheet-shell > .sheet-header h1.charname {
+    min-height: 0;
+    line-height: 1;
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-header .item-name-dynamic input,
+.thefade.sheet.item .item-sheet-shell > .sheet-header h1.charname input {
+    height: 34px;
+    min-width: 0;
+    padding: 0 2px 2px;
+    box-sizing: border-box;
+    font-size: 1.55rem !important;
+    line-height: 1.1;
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-header .item-type-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content !important;
+    max-width: 100%;
+    margin-top: 3px;
+    padding: 2px 7px;
+    overflow: hidden;
+    font-size: 0.62rem;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-tabs {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 3px;
+    min-height: 35px;
+    margin: 0 0 8px;
+    padding: 0;
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-tabs .item {
+    display: inline-flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 6px 7px;
+    font-size: 0.76rem;
+    line-height: 1.1;
+    text-align: center;
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 10px 12px 14px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid var(--border-faint);
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.thefade.sheet.item .item-sheet-shell > .sheet-body > .tab {
+    min-width: 0;
+}
+
+.thefade.sheet.item .item-sheet-shell .form-group {
+    align-items: stretch;
+    min-width: 0;
+    margin-bottom: 11px;
+    text-align: left;
+}
+
+.thefade.sheet.item .item-sheet-shell .item-attr-grid > .form-group {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.thefade.sheet.item .item-sheet-shell .form-group > label,
+.thefade.sheet.item .item-sheet-shell .form-group > h3,
+.thefade.sheet.item .item-sheet-shell .form-group > h4 {
+    width: auto;
+    margin: 0 0 3px;
+    text-align: left;
+}
+
+.thefade.sheet.item .item-sheet-shell .form-group input:not([type="checkbox"]):not([type="radio"]),
+.thefade.sheet.item .item-sheet-shell .form-group select,
+.thefade.sheet.item .item-sheet-shell .form-group textarea {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.thefade.sheet.item .item-sheet-shell .form-group select {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.thefade.sheet.item .item-sheet-shell .form-group input:not([type="checkbox"]):not([type="radio"]),
+.thefade.sheet.item .item-sheet-shell .form-group select {
+    min-height: 30px;
+}
+
+.thefade.sheet.item .item-sheet-shell .form-group input[type="checkbox"],
+.thefade.sheet.item .item-sheet-shell .form-group input[type="radio"] {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    min-height: 0;
+}
+
+.thefade.sheet.item .item-sheet-shell .form-field {
+    text-align: left;
+}
+
+.thefade.sheet.item .item-sheet-shell .tab[data-tab="description"] > textarea,
+.thefade.sheet.item .item-sheet-shell .tab[data-tab="description"] > .form-group textarea {
+    width: 100%;
+    min-height: 220px;
+    box-sizing: border-box;
+}
+
+.thefade.sheet.item .item-sheet-shell .hint {
+    line-height: 1.4;
+}
+
+.thefade.sheet.item .item-sheet-shell button,
+.thefade.sheet.item .item-sheet-shell .item-action-btn {
+    min-height: 28px;
+}
+
+.thefade.sheet.item .item-sheet-shell input:focus,
+.thefade.sheet.item .item-sheet-shell select:focus,
+.thefade.sheet.item .item-sheet-shell textarea:focus {
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 0 1px rgba(197, 164, 93, 0.18);
+}
+
+@media (max-width: 900px) {
+    .thefade.sheet.actor .redesigned-header .header-fields {
+        grid-template-columns: minmax(180px, 1fr) auto;
+    }
 }
 

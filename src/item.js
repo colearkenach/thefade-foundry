@@ -1,7 +1,13 @@
 // TheFadeItem document class (extracted from thefade.js).
 import { DEFAULT_WEAPON, DEFAULT_ARMOR, DEFAULT_SKILL } from './constants.js';
 import { isNaturalWeapon } from './weapon-rules.js';
+import {
+    buildSpellDamageProfile,
+    getSpellDamageComponents,
+    getSpellSuccessRequirements
+} from './spell-rules.js';
 import { getDarkMagicItemCorruptionValue, isDarkMagicItem } from './item-power-rules.js';
+import { getAlchemicalCraftCost, getAlchemicalDiscipline } from './alchemy-rules.js';
 
 /**
 * Base Item class for The Fade system
@@ -26,6 +32,7 @@ export class TheFadeItem extends Item {
             path: this._preparePathData,
             monsterpath: this._preparePathData,
             spell: this._prepareSpellData,
+            alchemical: this._prepareAlchemicalData,
             species: this._prepareSpeciesData,
             monsterspecies: this._prepareSpeciesData,
             drug: this._prepareDrugData,
@@ -163,14 +170,50 @@ export class TheFadeItem extends Item {
     */
     _prepareSpellData(itemData) {
         const data = itemData.system;
+        const sourceSystem = itemData._source?.system || {};
 
         // Initialize spell properties if undefined
         if (!data.school) data.school = "General";
-        if (!data.damage) data.damage = "";
-        if (!data.damageType) data.damageType = "";
+        data.damageComponents = getSpellDamageComponents(data);
+        const damageProfile = buildSpellDamageProfile(data);
+        data.damage = damageProfile.total || "";
+        data.damageType = damageProfile.primaryType;
+        if (data.sanityDamage === undefined || data.sanityDamage === null) data.sanityDamage = "";
+        if (!Array.isArray(data.statusEffects)) data.statusEffects = [];
+        if (!Array.isArray(data.buffEffects)) data.buffEffects = [];
+        if (data.recipeCost === undefined || data.recipeCost === null) data.recipeCost = "";
         if (!data.time) data.time = "Instantaneous";
         if (!data.successes) data.successes = 3;
+        // Existing Rune spells only had one successes field. Until the new
+        // values are explicitly saved, use that legacy requirement for both
+        // the Symbology drawing check and the Spellcasting activation check.
+        if (data.school === "Runes") {
+            const hasStoredSymbology = Object.prototype.hasOwnProperty.call(sourceSystem, "symbologySuccesses");
+            const hasStoredSpellcasting = Object.prototype.hasOwnProperty.call(sourceSystem, "spellcastingSuccesses");
+            if (!hasStoredSymbology) data.symbologySuccesses = data.successes;
+            if (!hasStoredSpellcasting) data.spellcastingSuccesses = data.successes;
+            const successRequirements = getSpellSuccessRequirements(data);
+            data.symbologySuccesses = successRequirements.symbology;
+            data.spellcastingSuccesses = successRequirements.spellcasting;
+        }
         if (!data.attack) data.attack = "";
+        if (!data.attackEffects || typeof data.attackEffects !== "object") {
+            data.attackEffects = { Avoid: "", Resilience: "", Grit: "" };
+        }
+        if (!data.description) data.description = "";
+    }
+
+    /** Prepare an Alchemical Item and its derived crafting labels/cost. */
+    _prepareAlchemicalData(itemData) {
+        const data = itemData.system;
+        if (!data.skill) data.skill = "Chemistry";
+        data.dt = Math.max(1, parseInt(data.dt, 10) || 1);
+        data.darkMagic = data.darkMagic === true;
+        data.discipline = getAlchemicalDiscipline(data);
+        data.craftCost = getAlchemicalCraftCost(data);
+        data.price = Math.max(0, Number(data.price) || 0);
+        data.weight = Math.max(0, Number(data.weight) || 0);
+        data.quantity = Math.max(0, Number(data.quantity) || 0);
         if (!data.description) data.description = "";
     }
 

@@ -143,7 +143,7 @@
                 </div>
 
                 <div class="form-group sin-actions">
-                    <button class="roll-addiction" type="button">Roll for Dark Magic Addiction</button>
+                    <button class="roll-addiction" type="button">Make Dark Magic Attack</button>
                     <button class="rest-daily" type="button" title="Scrub accumulated Sin for the day (stages persist)">Rest (Clear Sin)</button>
                 </div>
             </div>
@@ -171,7 +171,6 @@
             <select class="spell-school-filter">
                 <option value="all">All Schools</option>
                 <option value="General">General</option>
-                <option value="Alchemy">Alchemy</option>
                 <option value="Divine">Divine</option>
                 <option value="Elementalism">Elementalism</option>
                 <option value="Malevolent">Malevolent</option>
@@ -211,10 +210,10 @@
                          title="{{#if spell.isDarkSchool}}Dark Magic form of {{spell.system.school}}{{else}}{{spell.system.school}}{{/if}}">
                         {{spell.displaySchool}}
                     </div>
-                    <div class="spell-damage">{{#if spell.system.damage}}{{spell.system.damage}} {{spell.system.damageType}}{{else}}-{{/if}}</div>
+                    <div class="spell-damage" title="{{spell.damageDisplay}}">{{spell.damageDisplay}}</div>
                     <div class="spell-time">{{spell.system.time}}</div>
-                    <div class="spell-successes">{{spell.system.successes}}</div>
-                    <div class="spell-attack">{{#if spell.system.attack}}vs. {{spell.system.attack}}{{else}}-{{/if}}</div>
+                    <div class="spell-successes" title="{{spell.successesTitle}}">{{spell.successesDisplay}}</div>
+                    <div class="spell-attack" title="{{spell.attackDisplay}}">{{spell.attackDisplay}}</div>
                     <div class="spell-controls">
                         <a class="cast-spell" title="Cast Spell"><i class="fas fa-magic"></i></a>
                         <a class="item-edit" title="Edit Spell"><i class="fas fa-edit"></i></a>
@@ -226,10 +225,52 @@
                         {{spell.system.description}}
                     </div>
                     <div class="spell-details">
+                        <div class="spell-detail-item">
+                            <div class="spell-detail-label">{{#if (eq spell.system.school "Runes")}}Checks:{{else}}Successes:{{/if}}</div>
+                            <div class="spell-detail-value">{{spell.successesTitle}}</div>
+                        </div>
                         {{#if spell.system.range}}
                         <div class="spell-detail-item">
                             <div class="spell-detail-label">Range:</div>
                             <div class="spell-detail-value">{{spell.system.range}}</div>
+                        </div>
+                        {{/if}}
+                        {{#if spell.system.weapons}}
+                        <div class="spell-detail-item">
+                            <div class="spell-detail-label">Weapons:</div>
+                            <div class="spell-detail-value">{{spell.system.weapons}}</div>
+                        </div>
+                        {{/if}}
+                        {{#if spell.system.recipeCost}}
+                        <div class="spell-detail-item">
+                            <div class="spell-detail-label">Recipe Cost:</div>
+                            <div class="spell-detail-value">{{spell.system.recipeCost}}</div>
+                        </div>
+                        {{/if}}
+                        {{#if spell.effectsProfile.sanityDamage}}
+                        <div class="spell-detail-item">
+                            <div class="spell-detail-label">Sanity Damage:</div>
+                            <div class="spell-detail-value">{{spell.effectsProfile.sanityDamage}}</div>
+                        </div>
+                        {{/if}}
+                        {{#if spell.effectsProfile.statusEffects.length}}
+                        <div class="spell-detail-item spell-detail-item-list">
+                            <div class="spell-detail-label">Inflicts:</div>
+                            <div class="spell-detail-value">
+                                {{#each spell.effectsProfile.statusEffects as |effect|}}
+                                <div>{{effect.display}}</div>
+                                {{/each}}
+                            </div>
+                        </div>
+                        {{/if}}
+                        {{#if spell.effectsProfile.buffEffects.length}}
+                        <div class="spell-detail-item spell-detail-item-list">
+                            <div class="spell-detail-label">Grants:</div>
+                            <div class="spell-detail-value">
+                                {{#each spell.effectsProfile.buffEffects as |buff|}}
+                                <div>{{buff.display}}</div>
+                                {{/each}}
+                            </div>
                         </div>
                         {{/if}}
                         {{#if spell.system.bonusEffect}}
